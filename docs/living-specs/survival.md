@@ -38,6 +38,8 @@ Make every building operation feel like real survival work: players must have th
 - Provide a `buildtools.bypass.survival` or creative-mode bypass.
 - In V1, fire standard block place/break events and respect cancellation by other protection plugins; explicit `ClaimProvider` integrations come in Next.
 - Build claim/anti-grief integration behind a `ClaimProvider` abstraction for later use.
+- Validate `interaction_distance`, `selection_extent`, and `max_operation_blocks` independently; none should silently turn into unlimited reach.
+- For connected-block tools, charge only the validated operation plan and re-check inventory immediately before execution.
 
 ## Current
 
@@ -49,7 +51,7 @@ Make every building operation feel like real survival work: players must have th
 ## Next
 
 - [ ] Claim plugin abstraction and integrations (WorldGuard, GriefPrevention, Lands, Towny)
-- [ ] Selection/operation size limits
+- [ ] Configurable `interaction_distance`, `selection_extent`, `max_operation_blocks`, and `max_chain_distance`
 - [ ] Rate limiting and anti-spam
 
 ## Future
@@ -64,6 +66,8 @@ Make every building operation feel like real survival work: players must have th
 |------|----------|-----|
 | 2026-08-16 | Refund on undo | If undo restores blocks, player must get back what was spent |
 | 2026-08-16 | Claim-provider abstraction, integration in Next | Avoid hard dependency on a single plugin; not in V1 scope |
+| 2026-08-17 | Reach and operation limits are separate configuration values | Prevents confusing interaction reach with the size of an approved edit |
+| 2026-08-17 | Chained operations are charged from their computed plan | Players see and pay for exactly the blocks that will be changed |
 
 ## Open questions
 

@@ -24,16 +24,18 @@ Give players a precise, visible way to define the region they are about to edit.
 ## Invariants
 
 - A player must have an active selection before a region tool can execute.
+- `interaction_distance` limits the initial raycast/selection target; it does not cap the selected region's `selection_extent`.
 - The selection boundary must be visible to the owning player while active.
 - The visual preview must exactly match the selected region.
-- Selection size is bounded by server limit.
+- Selection extent and volume are bounded by server limits.
 
 ## Implementation guidance
 
 - Selection state lives in a per-player `PlayerSession`.
 - Support two-point (cuboid) selection via left/right click or commands (`/bt pos1`, `/bt pos2`).
-- Render the boundary with `BlockDisplay` entities at the corners/edges, falling back to particle outlines.
-- Update or remove displays when the selection changes or the player logs out.
+- The server raycasts the initial target and validates it against `interaction_distance`.
+- Render selection boundaries with aggregated outlines or a capped number of `BlockDisplay` entities; do not create one display entity per block in large selections.
+- Update or remove preview entities when the selection changes or the player logs out.
 - Serialize selection as two `BlockVector3`s.
 
 ## Current
@@ -46,8 +48,9 @@ Give players a precise, visible way to define the region they are about to edit.
 
 - [ ] Selection expand/contract commands
 - [ ] Sphere/cylinder selection modes
+- [ ] Connected-block selection mode using bounded six-directional traversal
 - [ ] Command-based precise coordinate selection
-- [ ] Selection info command (size, block count)
+- [ ] Selection info command (extent, volume, block count)
 
 ## Future
 
@@ -61,6 +64,8 @@ Give players a precise, visible way to define the region they are about to edit.
 |------|----------|-----|
 | 2026-08-16 | Block displays with particle fallback | Best visual clarity on modern Paper |
 | 2026-08-16 | Cuboid first, other shapes later | Most common use case, simplest invariant set |
+| 2026-08-17 | Interaction distance and selection extent are separate limits | A player can select a bounded remote region without granting unlimited reach |
+| 2026-08-17 | Large selection previews use bounded aggregated rendering | Keeps the server responsive and avoids one entity per block |
 
 ## Open questions
 

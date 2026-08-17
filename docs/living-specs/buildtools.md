@@ -46,8 +46,8 @@ Success looks like: a server owner can install the plugin, players can quickly s
 
 - Target modern Paper API (1.20.4+) and Java 17+.
 - Keep tools stateless; per-player session holds selection, clipboard, and undo history.
-- Each tool implements a common lifecycle: preview, validate, execute, record, undo.
-- Use `BlockDisplay` entities for previews where available, with particle outlines as a fallback.
+- Distinguish `interaction_distance` (server raycast/start-point reach) from `selection_extent` and `max_operation_blocks`; selection extent and operation size are not limited to interaction distance.
+- Render bounded previews with aggregated outlines or capped display entities; never create one `BlockDisplay` per affected block for large operations.
 - Commands are the primary UI; hotkey/wand item support may follow.
 - Prefer async validation and chunked execution for large operations.
 - Permission node convention: `buildtools.tool.<name>`, `buildtools.limit.<size>`, `buildtools.bypass.creative`.
@@ -64,10 +64,11 @@ Success looks like: a server owner can install the plugin, players can quickly s
 ## Next
 
 - [ ] Move / stack tool
-- [ ] Shape tools (walls, floors, circles, spheres, lines)
+- [ ] Pattern fill
+- [ ] Connected-block chaining
+- [ ] Walls, floors, circles, spheres, lines
 - [ ] Mirror / symmetry
-- [ ] Pattern fills and gradients
-- [ ] Rotate / flip blueprints
+- [ ] Paste with rotation / flip
 - [ ] Claim plugin integration
 
 ## Future
@@ -86,11 +87,13 @@ Success looks like: a server owner can install the plugin, players can quickly s
 | 2026-08-16 | Living spec catalog: root + per-feature specs | Keeps each domain focused and independently evolvable |
 | 2026-08-16 | Visual previews via `BlockDisplay` entities, particle fallback | Clear pre-operation feedback; modern Paper supports display entities |
 | 2026-08-16 | Survival economics are core, not optional | Every tool must respect inventory or it breaks survival |
+| 2026-08-17 | Reach is split into interaction distance, selection extent, and operation block limits | Lets players operate on an approved region beyond their initial raycast without making reach unlimited |
+| 2026-08-17 | Large previews use bounded aggregated rendering | Avoids one display entity per affected block and keeps previews performant |
 
 ## Open questions
 
 - [ ] Supported Minecraft version range (1.20.4+, or 1.19.x?)
 - [ ] Default wand item or command-only selection
 - [ ] Which claim plugins to integrate first
-- [ ] Maximum selection/operation size and rate limits
+- [ ] Exact defaults for `interaction_distance`, `selection_extent`, `max_operation_blocks`, and `max_chain_distance`
 - [ ] Storage backend for blueprints and metadata
