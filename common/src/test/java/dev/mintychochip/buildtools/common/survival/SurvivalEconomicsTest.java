@@ -119,6 +119,32 @@ class SurvivalEconomicsTest {
     }
 
     @Test
+    void cancelledMutationRefundsChargeAndLeavesWorldUnchanged() {
+        TestHarness harness = new TestHarness();
+        BlockPosition a = harness.pos(0, 64, 0);
+        harness.world.put(a, BlockState.of("minecraft:dirt"));
+        harness.world.cancel(a);
+        harness.survival.give(TestHarness.ACTOR, "minecraft:stone", 4);
+        select(harness, a, a);
+
+        CommandResult result = harness.commands.execute(harness.command(a, a, "fill", "minecraft:stone"));
+
+        assertFalse(result.success(), result.message());
+        assertEquals(BlockState.of("minecraft:dirt"), harness.world.getBlock(a));
+        assertEquals(4, harness.survival.count(TestHarness.ACTOR, "minecraft:stone"));
+        int charged = harness.survival.charges().stream()
+                .mapToInt(cost -> cost.countOf("minecraft:stone"))
+                .sum();
+        int refunded = harness.survival.refunds().stream()
+                .mapToInt(cost -> cost.countOf("minecraft:stone"))
+                .sum();
+        assertEquals(charged, refunded);
+        CommandResult undo = harness.commands.execute(harness.command(a, a, "undo"));
+        assertFalse(undo.success());
+        assertEquals("Nothing to undo", undo.message());
+    }
+
+    @Test
     void fullInventoryRefundDropsLeftovers() {
         TestHarness harness = new TestHarness();
         harness.survival.withCapacity(0);

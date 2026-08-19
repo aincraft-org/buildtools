@@ -87,6 +87,12 @@ public final class ToolExecutor {
             return Optional.empty();
         }
         if (record.changes().isEmpty()) {
+            if (!preview.affectedPositions().isEmpty()) {
+                if (!bypass) {
+                    survival.refund(request.actorId(), preview.estimatedCost());
+                }
+                return Optional.empty();
+            }
             return Optional.of(record);
         }
         if (!bypass && !record.harvest().isEmpty()) {

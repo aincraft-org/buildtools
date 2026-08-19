@@ -38,7 +38,7 @@ public final class CopyTool implements Tool {
                     java.util.List.of(),
                     ResourceCost.none());
         }
-        return new ToolPreview(request.selection(), request.selection().positions(), ResourceCost.none());
+        return new ToolPreview(request.selection(), java.util.List.of(), ResourceCost.none());
     }
 
     @Override
