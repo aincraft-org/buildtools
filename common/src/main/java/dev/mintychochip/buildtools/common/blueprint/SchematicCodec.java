@@ -69,9 +69,7 @@ public final class SchematicCodec {
                 for (int x = 0; x < width; x++) {
                     int index = reader.next();
                     BlockState state = palette.getOrDefault(index, BlockState.AIR);
-                    if (!state.isAir()) {
-                        blocks.put(new BlockOffset(x, y, z), state);
-                    }
+                    blocks.put(new BlockOffset(x, y, z), state);
                 }
             }
         }

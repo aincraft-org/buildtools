@@ -4,14 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import dev.mintychochip.buildtools.api.ActorId;
 import dev.mintychochip.buildtools.api.command.CommandResult;
 import dev.mintychochip.buildtools.api.world.BlockPosition;
 import dev.mintychochip.buildtools.api.world.BlockState;
 import dev.mintychochip.buildtools.common.support.TestHarness;
 import java.nio.file.Path;
 import java.util.Map;
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -58,26 +56,48 @@ class BlueprintRoundTripTest {
 
     @Test
     void fileStoreSchematicPreservesBlockState(@TempDir Path temp) {
-        ActorId owner = new ActorId(UUID.fromString("00000000-0000-0000-0000-0000000000bb"));
         FileBlueprintStore store = new FileBlueprintStore(temp);
         TestHarness harness = new TestHarness();
         BlockPosition a = harness.pos(0, 10, 0);
+        BlockPosition b = harness.pos(1, 11, 0);
         BlockState stairs = new BlockState("minecraft:brick_stairs", Map.of("facing", "south", "half", "bottom"));
         harness.world.put(a, stairs);
         harness.world.put(harness.pos(1, 10, 0), BlockState.of("minecraft:emerald_block"));
-        select(harness, a, harness.pos(1, 10, 0));
+        harness.world.put(harness.pos(0, 11, 0), BlockState.AIR);
+        harness.world.put(b, BlockState.of("minecraft:gold_block"));
+        select(harness, a, b);
         assertTrue(harness.commands.execute(harness.command(a, a, "copy")).success());
 
-        store.save(owner, "house", harness.sessions.clipboard(TestHarness.ACTOR).orElseThrow());
-        var loaded = store.load(owner, "house").orElseThrow();
-        assertEquals(2, loaded.size());
+        store.save(TestHarness.ACTOR, "house", harness.sessions.clipboard(TestHarness.ACTOR).orElseThrow());
+        harness.sessions.session(TestHarness.ACTOR).setClipboard(null);
+        var loaded = store.load(TestHarness.ACTOR, "house").orElseThrow();
+        assertEquals(4, loaded.size());
         assertEquals(stairs, loaded.blocks().values().stream()
                 .filter(state -> state.namespacedKey().equals("minecraft:brick_stairs"))
                 .findFirst()
                 .orElseThrow());
-        assertEquals(1, store.list(owner).size());
-        assertTrue(store.delete(owner, "house"));
-        assertTrue(store.list(owner).isEmpty());
+        assertTrue(
+                loaded.blocks().values().stream().anyMatch(BlockState::isAir),
+                "decoded schematic must keep air cells so paste can clear holes");
+
+        harness.sessions.setClipboard(TestHarness.ACTOR, loaded);
+        BlockPosition dest = harness.pos(30, 20, 30);
+        harness.world.fill(dest, dest.offset(1, 1, 0), BlockState.of("minecraft:dirt"));
+        harness.sessions.session(TestHarness.ACTOR).setPos1(dest);
+        harness.survival.give(TestHarness.ACTOR, "minecraft:brick_stairs", 4);
+        harness.survival.give(TestHarness.ACTOR, "minecraft:emerald_block", 4);
+        harness.survival.give(TestHarness.ACTOR, "minecraft:gold_block", 4);
+
+        CommandResult pasted = harness.commands.execute(harness.command(dest, dest, "paste"));
+        assertTrue(pasted.success(), pasted.message());
+        assertEquals(stairs, harness.world.getBlock(dest));
+        assertEquals(BlockState.of("minecraft:emerald_block"), harness.world.getBlock(dest.offset(1, 0, 0)));
+        assertEquals(BlockState.AIR, harness.world.getBlock(dest.offset(0, 1, 0)));
+        assertEquals(BlockState.of("minecraft:gold_block"), harness.world.getBlock(dest.offset(1, 1, 0)));
+
+        assertEquals(1, store.list(TestHarness.ACTOR).size());
+        assertTrue(store.delete(TestHarness.ACTOR, "house"));
+        assertTrue(store.list(TestHarness.ACTOR).isEmpty());
     }
 
     private static void select(TestHarness harness, BlockPosition a, BlockPosition b) {
