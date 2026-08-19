@@ -1,7 +1,7 @@
 # Tools — Living Spec
 
 > Status: active
-> Last updated: 2026-08-16
+> Last updated: 2026-08-19
 > Owners:
 
 ## Intent
@@ -46,12 +46,12 @@ Provide a consistent, extensible set of building operations that all share the s
 
 ## Current
 
-- [ ] Tool framework and registry
-- [ ] Replace tool
-- [ ] Fill tool with affected-block preview
-- [ ] Copy tool (region to clipboard)
-- [ ] Paste tool (clipboard to world)
-- [ ] Undo/redo
+- [x] Tool framework and registry
+- [x] Replace tool
+- [x] Fill tool with affected-block preview
+- [x] Copy tool (region to clipboard)
+- [x] Paste tool (clipboard to world)
+- [x] Undo/redo
 
 ## Next
 

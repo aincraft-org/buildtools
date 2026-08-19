@@ -1,7 +1,7 @@
 # BuildTools — Living Spec
 
 > Status: active
-> Last updated: 2026-08-16
+> Last updated: 2026-08-19
 > Owners:
 
 ## Intent
@@ -44,7 +44,8 @@ Success looks like: a server owner can install the plugin, players can quickly s
 
 ## Implementation guidance
 
-- Target modern Paper API (1.20.4+) and Java 17+.
+- Target Paper API 26.2 (`io.papermc.paper:paper-api:26.2.build.112-stable`) and Java 25.
+- Gradle modules: `api` (contracts), `common` (JVM domain), `paper` (Paper adapter). See `docs/superpowers/specs/2026-08-17-buildtools-gradle-modules-design.md`.
 - Keep tools stateless; per-player session holds selection, clipboard, and undo history.
 - Distinguish `interaction_distance` (server raycast/start-point reach) from `selection_extent` and `max_operation_blocks`; selection extent and operation size are not limited to interaction distance.
 - Render bounded previews with aggregated outlines or capped display entities; never create one `BlockDisplay` per affected block for large operations.
@@ -55,11 +56,15 @@ Success looks like: a server owner can install the plugin, players can quickly s
 
 ## Current
 
-- [ ] `selection` — two-point cuboid selection with `BlockDisplay` outline
-- [ ] `tools` — replace, fill, copy, paste, undo/redo
-- [ ] `survival` — inventory cost, refund on undo, permission nodes
-- [ ] `blueprints` — copy-to-clipboard and save/load named blueprints
-- [ ] this root catalog and project bootstrap
+- [x] `selection` — two-point cuboid selection with `BlockDisplay` outline
+- [x] `tools` — replace, fill, copy, paste, undo/redo
+- [x] `survival` — inventory cost, refund on undo, permission nodes
+- [x] `blueprints` — copy-to-clipboard and save/load named blueprints
+- [x] this root catalog and project bootstrap
+- [x] Gradle multi-project scaffold: api, common, paper
+
+### Current notes
+V1 command surface is `/bt` (pos1/pos2, replace, fill, copy, paste, undo/redo, blueprint save/load/list/delete). Defaults: `interactionDistance=6`, `selectionExtent=64`, `maxOperationBlocks=32768`. Live Paper playthrough is not required to mark Current done.
 
 ## Next
 
@@ -89,11 +94,16 @@ Success looks like: a server owner can install the plugin, players can quickly s
 | 2026-08-16 | Survival economics are core, not optional | Every tool must respect inventory or it breaks survival |
 | 2026-08-17 | Reach is split into interaction distance, selection extent, and operation block limits | Lets players operate on an approved region beyond their initial raycast without making reach unlimited |
 | 2026-08-17 | Large previews use bounded aggregated rendering | Avoids one display entity per affected block and keeps previews performant |
+| 2026-08-17 | Paper 26.2 and Java 25 | Matches current Paper API; 26.2 requires Java 25 |
+| 2026-08-17 | Strict api/common/paper Gradle split | Keeps Paper at the edge and makes domain tests JVM-only |
+| 2026-08-19 | Command-only selection in V1 | Wand item is deferred; `/bt pos1`/`pos2` is enough |
+| 2026-08-19 | Defaults 6 / 64 / 32768 | Locked so limits are testable without a config file |
+| 2026-08-19 | Flat-file Sponge Schematic blueprints | Player-scoped `.schem` + JSON metadata under the plugin data folder |
 
 ## Open questions
 
-- [ ] Supported Minecraft version range (1.20.4+, or 1.19.x?)
-- [ ] Default wand item or command-only selection
+- [x] Supported Minecraft version range (1.20.4+, or 1.19.x?) — Paper 26.2 / Java 25
+- [x] Default wand item or command-only selection — command-only in V1
 - [ ] Which claim plugins to integrate first
-- [ ] Exact defaults for `interaction_distance`, `selection_extent`, `max_operation_blocks`, and `max_chain_distance`
-- [ ] Storage backend for blueprints and metadata
+- [x] Exact defaults for `interaction_distance`, `selection_extent`, `max_operation_blocks`, and `max_chain_distance` — 6 / 64 / 32768; chain distance stays Next
+- [x] Storage backend for blueprints and metadata — flat files + Sponge Schematic v2

@@ -1,7 +1,7 @@
 # Selection — Living Spec
 
 > Status: active
-> Last updated: 2026-08-16
+> Last updated: 2026-08-19
 > Owners:
 
 ## Intent
@@ -40,9 +40,9 @@ Give players a precise, visible way to define the region they are about to edit.
 
 ## Current
 
-- [ ] Two-point cuboid selection
-- [ ] Visual boundary with block displays / particles
-- [ ] Per-player session storage
+- [x] Two-point cuboid selection
+- [x] Visual boundary with block displays / particles
+- [x] Per-player session storage
 
 ## Next
 
@@ -69,6 +69,6 @@ Give players a precise, visible way to define the region they are about to edit.
 
 ## Open questions
 
-- [ ] Use a physical wand item (e.g., wooden axe) or command-only?
+- [x] Use a physical wand item (e.g., wooden axe) or command-only? — command-only in V1
 - [ ] Should selection persist across logins?
-- [ ] Maximum selection volume and dimension limits?
+- [x] Maximum selection volume and dimension limits? — extent 64, operation 32768 blocks

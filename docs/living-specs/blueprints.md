@@ -1,7 +1,7 @@
 # Blueprints — Living Spec
 
 > Status: active
-> Last updated: 2026-08-16
+> Last updated: 2026-08-19
 > Owners:
 
 ## Intent
@@ -38,10 +38,10 @@ Let players save their selections and load them again anywhere, so builds can be
 
 ## Current
 
-- [ ] Copy-to-clipboard (implicit unnamed blueprint)
-- [ ] Save selection as named blueprint
-- [ ] Load and paste named blueprint
-- [ ] List and delete player blueprints
+- [x] Copy-to-clipboard (implicit unnamed blueprint)
+- [x] Save selection as named blueprint
+- [x] Load and paste named blueprint
+- [x] List and delete player blueprints
 
 ## Next
 
@@ -67,5 +67,5 @@ Let players save their selections and load them again anywhere, so builds can be
 ## Open questions
 
 - [ ] Max blueprint size and per-player storage quota?
-- [ ] Allow pasting block entities (chests, signs) in V1?
-- [ ] Should blueprints be stored in SQLite or flat files?
+- [x] Allow pasting block entities (chests, signs) in V1? — no; plain block state only
+- [x] Should blueprints be stored in SQLite or flat files? — flat files (`.schem` + JSON metadata)

@@ -1,7 +1,7 @@
 # Survival — Living Spec
 
 > Status: active
-> Last updated: 2026-08-16
+> Last updated: 2026-08-19
 > Owners:
 
 ## Intent
@@ -43,10 +43,10 @@ Make every building operation feel like real survival work: players must have th
 
 ## Current
 
-- [ ] Inventory cost check for replace, fill, paste
-- [ ] Refund on undo
-- [ ] Permission node per tool
-- [ ] Creative bypass
+- [x] Inventory cost check for replace, fill, paste
+- [x] Refund on undo
+- [x] Permission node per tool
+- [x] Creative bypass
 
 ## Next
 
@@ -71,6 +71,6 @@ Make every building operation feel like real survival work: players must have th
 
 ## Open questions
 
-- [ ] Refund when inventory is full — drop items or block undo?
+- [x] Refund when inventory is full — drop items or block undo? — drop leftovers at the player
 - [ ] Which claim plugins to support first?
-- [ ] Should creative-mode players still pay from inventory or bypass entirely?
+- [x] Should creative-mode players still pay from inventory or bypass entirely? — bypass via creative or `buildtools.bypass.creative` / `buildtools.bypass.survival`
