@@ -9,7 +9,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ * Minimal NBT tags needed for Sponge Schematic v2 (no float/double).
+ */
 public abstract class NbtTag {
+    /** End of compound. */
     public static final int END = 0;
     public static final int BYTE = 1;
     public static final int SHORT = 2;
@@ -21,10 +25,23 @@ public abstract class NbtTag {
     public static final int COMPOUND = 10;
     public static final int INT_ARRAY = 11;
 
+    /** @return NBT type id */
     public abstract int type();
 
+    /**
+     * Writes this tag's payload (not the type byte or name).
+     *
+     * @param output output
+     * @throws IOException if writing fails
+     */
     public abstract void writePayload(DataOutput output) throws IOException;
 
+    /**
+     * @param type type id
+     * @param input payload
+     * @return tag
+     * @throws IOException if the type is unsupported or the stream is short
+     */
     public static NbtTag read(int type, DataInput input) throws IOException {
         return switch (type) {
             case BYTE -> new NbtByte(input.readByte());
@@ -60,6 +77,7 @@ public abstract class NbtTag {
         };
     }
 
+    /** TAG_Byte. */
     public static final class NbtByte extends NbtTag {
         private final byte value;
 
@@ -82,6 +100,7 @@ public abstract class NbtTag {
         }
     }
 
+    /** TAG_Short. */
     public static final class NbtShort extends NbtTag {
         private final short value;
 
@@ -104,6 +123,7 @@ public abstract class NbtTag {
         }
     }
 
+    /** TAG_Int. */
     public static final class NbtInt extends NbtTag {
         private final int value;
 
@@ -126,6 +146,7 @@ public abstract class NbtTag {
         }
     }
 
+    /** TAG_Long. */
     public static final class NbtLong extends NbtTag {
         private final long value;
 
@@ -148,6 +169,7 @@ public abstract class NbtTag {
         }
     }
 
+    /** TAG_String. */
     public static final class NbtString extends NbtTag {
         private final String value;
 
@@ -170,6 +192,7 @@ public abstract class NbtTag {
         }
     }
 
+    /** TAG_Byte_Array. */
     public static final class NbtByteArray extends NbtTag {
         private final byte[] value;
 
@@ -193,6 +216,7 @@ public abstract class NbtTag {
         }
     }
 
+    /** TAG_Int_Array. */
     public static final class NbtIntArray extends NbtTag {
         private final int[] value;
 
@@ -218,6 +242,7 @@ public abstract class NbtTag {
         }
     }
 
+    /** TAG_List of a single element type. */
     public static final class NbtList extends NbtTag {
         private final int elementType;
         private final List<NbtTag> values;
@@ -246,6 +271,7 @@ public abstract class NbtTag {
         }
     }
 
+    /** TAG_Compound of named children. */
     public static final class NbtCompound extends NbtTag {
         private final Map<String, NbtTag> values = new LinkedHashMap<>();
 

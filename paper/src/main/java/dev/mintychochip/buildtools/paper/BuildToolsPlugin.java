@@ -27,6 +27,10 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
+/**
+ * Paper entry point. Wires {@code api}/{@code common} ports, registers replace/fill/copy/paste,
+ * and binds {@code /bt}.
+ */
 public final class BuildToolsPlugin extends JavaPlugin implements Listener {
     private ToolRegistry toolRegistry;
     private ToolExecutor toolExecutor;
@@ -83,6 +87,11 @@ public final class BuildToolsPlugin extends JavaPlugin implements Listener {
         getLogger().info("BuildTools disabled.");
     }
 
+    /**
+     * Clears preview entities and session state so logout cannot leak display entities.
+     *
+     * @param event quit
+     */
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         ActorId actor = new ActorId(event.getPlayer().getUniqueId());

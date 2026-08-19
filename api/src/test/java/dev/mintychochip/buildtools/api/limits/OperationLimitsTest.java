@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
+/** Tests locked default limits and rejection of non-positive values. */
 class OperationLimitsTest {
     @Test
     void defaultsMatchLockedValues() {

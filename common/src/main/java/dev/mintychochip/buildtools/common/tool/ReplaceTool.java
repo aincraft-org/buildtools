@@ -10,6 +10,10 @@ import dev.mintychochip.buildtools.api.world.BlockState;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Replaces blocks matching {@code from} with {@code to}. Only matching cells are previewed
+ * and executed.
+ */
 public final class ReplaceTool extends MutatingTool {
     @Override
     public String name() {

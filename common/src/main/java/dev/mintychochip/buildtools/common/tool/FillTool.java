@@ -10,6 +10,10 @@ import dev.mintychochip.buildtools.api.world.BlockState;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Writes one target state across the selection. Preview lists every cell that is not already
+ * that state.
+ */
 public final class FillTool extends MutatingTool {
     @Override
     public String name() {

@@ -8,6 +8,7 @@ import dev.mintychochip.buildtools.api.world.BlockPosition;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
+/** Tests that outlines stay on the cuboid surface and under the display cap. */
 class PreviewGeometryTest {
     @Test
     void outlineMatchesCuboidEdgesAndIsBounded() {

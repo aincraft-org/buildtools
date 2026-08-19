@@ -6,9 +6,15 @@ import java.util.Objects;
 import org.bukkit.Server;
 import org.bukkit.entity.Player;
 
+/**
+ * Online-player permission lookup. Offline actors have no nodes.
+ */
 public final class PaperPermissionService implements PermissionService {
     private final Server server;
 
+    /**
+     * @param server running server
+     */
     public PaperPermissionService(Server server) {
         this.server = Objects.requireNonNull(server, "server");
     }

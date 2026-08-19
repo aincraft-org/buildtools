@@ -17,9 +17,16 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
+/**
+ * Copies the selection (including air) into the actor clipboard. Does not mutate the world;
+ * preview affected set is empty so the executor does not treat it as a cancelled mutation.
+ */
 public final class CopyTool implements Tool {
     private final ClipboardHolder clipboards;
 
+    /**
+     * @param clipboards session clipboard port
+     */
     public CopyTool(ClipboardHolder clipboards) {
         this.clipboards = Objects.requireNonNull(clipboards, "clipboards");
     }

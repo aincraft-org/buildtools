@@ -26,6 +26,10 @@ import org.bukkit.util.Transformation;
 import org.joml.AxisAngle4f;
 import org.joml.Vector3f;
 
+/**
+ * Bounded {@link BlockDisplay} outline with particle fallback. Uses
+ * {@link PreviewGeometry} so large selections never spawn one entity per block.
+ */
 public final class PaperPreviewRenderer implements PreviewRenderer {
     static final int MAX_DISPLAYS = PreviewGeometry.DEFAULT_MAX_DISPLAYS;
 
@@ -33,6 +37,9 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
     private final Server server;
     private final Map<ActorId, List<UUID>> spawned = new HashMap<>();
 
+    /**
+     * @param plugin owning plugin (for {@code showEntity} and cleanup)
+     */
     public PaperPreviewRenderer(JavaPlugin plugin) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.server = plugin.getServer();
@@ -52,6 +59,12 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
         showPositions(actor, selection, plan(selection));
     }
 
+    /**
+     * Plans a bounded outline for {@code selection}. Exposed for unit tests without a server.
+     *
+     * @param selection cuboid
+     * @return at most {@link #MAX_DISPLAYS} edge samples
+     */
     public static List<BlockPosition> plan(CuboidSelection selection) {
         return PreviewGeometry.outline(selection, MAX_DISPLAYS);
     }

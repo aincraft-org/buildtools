@@ -21,6 +21,9 @@ import java.nio.charset.StandardCharsets;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Checks {@code plugin.yml} metadata and that adapters implement API ports on the Paper side.
+ */
 class PaperBoundaryTest {
     @Test
     void pluginMetadataPointsAtPaperEntryPoint() throws Exception {

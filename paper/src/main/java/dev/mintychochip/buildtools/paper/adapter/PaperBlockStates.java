@@ -6,13 +6,25 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.bukkit.block.data.BlockData;
 
+/**
+ * Translates Bukkit {@link BlockData} strings into API {@link BlockState} values and back.
+ * Property keys are serialized in sorted order for stable equality.
+ */
 public final class PaperBlockStates {
     private PaperBlockStates() {}
 
+    /**
+     * @param data Bukkit block data
+     * @return API state
+     */
     public static BlockState fromBukkit(BlockData data) {
         return parse(data.getAsString());
     }
 
+    /**
+     * @param raw {@code namespaced:key} or {@code namespaced:key[k=v,...]}
+     * @return API state
+     */
     public static BlockState parse(String raw) {
         if (raw == null || raw.isBlank()) {
             throw new IllegalArgumentException("namespacedKey must be present");
@@ -39,6 +51,10 @@ public final class PaperBlockStates {
         return new BlockState(key, properties);
     }
 
+    /**
+     * @param state API state
+     * @return Bukkit {@link BlockData} string
+     */
     public static String toBukkitString(BlockState state) {
         if (state.properties().isEmpty()) {
             return state.namespacedKey();

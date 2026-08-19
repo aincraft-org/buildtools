@@ -8,9 +8,17 @@ import java.io.IOException;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.GZIPOutputStream;
 
+/**
+ * Gzip named-compound NBT used by Sponge schematics.
+ */
 public final class NbtIo {
     private NbtIo() {}
 
+    /**
+     * @param name root tag name (typically {@code Schematic})
+     * @param root compound
+     * @return gzip bytes
+     */
     public static byte[] writeGzipNamed(String name, NbtTag.NbtCompound root) {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -26,6 +34,11 @@ public final class NbtIo {
         }
     }
 
+    /**
+     * @param data gzip named compound
+     * @return root compound
+     * @throws IllegalArgumentException if the bytes are not a gzip compound
+     */
     public static NbtTag.NbtCompound readGzipNamed(byte[] data) {
         try (DataInputStream input = new DataInputStream(new GZIPInputStream(new ByteArrayInputStream(data)))) {
             int type = input.readByte();

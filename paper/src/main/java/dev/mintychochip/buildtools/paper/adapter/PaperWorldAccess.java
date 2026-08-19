@@ -15,9 +15,16 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 
+/**
+ * {@link WorldAccess} over {@link Server}. {@link #setBlock} fires {@link BlockBreakEvent}
+ * and {@link BlockPlaceEvent} and honors cancellation.
+ */
 public final class PaperWorldAccess implements WorldAccess {
     private final Server server;
 
+    /**
+     * @param server running server
+     */
     public PaperWorldAccess(Server server) {
         this.server = Objects.requireNonNull(server, "server");
     }

@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
+/** Tests undo/redo stacks, redo invalidation, and eviction. */
 class OperationHistoryTest {
     private static final ActorId ACTOR = new ActorId(UUID.fromString("00000000-0000-0000-0000-0000000000aa"));
 

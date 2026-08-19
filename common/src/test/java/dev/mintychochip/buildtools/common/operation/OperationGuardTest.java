@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
+/** Tests interaction, extent, and preview-size checks independently. */
 class OperationGuardTest {
     private final OperationGuard guard = new OperationGuard(new OperationLimits(6, 4, 8));
 

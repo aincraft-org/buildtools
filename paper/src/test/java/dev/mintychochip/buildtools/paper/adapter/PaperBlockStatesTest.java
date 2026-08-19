@@ -8,6 +8,7 @@ import dev.mintychochip.buildtools.api.world.BlockState;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
+/** Tests Paper block-state parse/serialize without a live server. */
 class PaperBlockStatesTest {
     @Test
     void parsesPlainAndStatefulKeysIntoApiOwnedValues() {

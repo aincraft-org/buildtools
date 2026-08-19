@@ -4,9 +4,15 @@ import dev.mintychochip.buildtools.api.service.TaskScheduler;
 import java.util.Objects;
 import org.bukkit.plugin.java.JavaPlugin;
 
+/**
+ * Bukkit scheduler adapter that runs immediately when already on the primary thread.
+ */
 public final class PaperTaskScheduler implements TaskScheduler {
     private final JavaPlugin plugin;
 
+    /**
+     * @param plugin owning plugin
+     */
     public PaperTaskScheduler(JavaPlugin plugin) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
     }

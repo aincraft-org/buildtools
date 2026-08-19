@@ -17,10 +17,18 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.util.RayTraceResult;
 
+/**
+ * Bukkit {@code /bt} adapter: resolves origin and look-target, then calls
+ * {@link BuildToolsCommands#execute}.
+ */
 public final class BuildToolsCommand implements CommandExecutor {
     private final BuildToolsCommands commands;
     private final OperationLimits limits;
 
+    /**
+     * @param commands domain dispatcher
+     * @param limits used for raycast distance
+     */
     public BuildToolsCommand(BuildToolsCommands commands, OperationLimits limits) {
         this.commands = Objects.requireNonNull(commands, "commands");
         this.limits = Objects.requireNonNull(limits, "limits");
@@ -38,6 +46,11 @@ public final class BuildToolsCommand implements CommandExecutor {
         return true;
     }
 
+    /**
+     * @param player sender
+     * @param args raw tokens
+     * @return domain context
+     */
     CommandContext toContext(Player player, String[] args) {
         BlockPosition origin = new BlockPosition(
                 player.getWorld().getName(),

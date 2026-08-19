@@ -8,14 +8,26 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
+/**
+ * Lazy per-actor {@link PlayerSession} map that also implements {@link ClipboardHolder}.
+ */
 public final class PlayerSessionStore implements ClipboardHolder {
     private final Map<ActorId, PlayerSession> sessions = new HashMap<>();
 
+    /**
+     * @param actor player
+     * @return existing or new session
+     */
     public PlayerSession session(ActorId actor) {
         Objects.requireNonNull(actor, "actor");
         return sessions.computeIfAbsent(actor, ignored -> new PlayerSession());
     }
 
+    /**
+     * Drops the session (logout).
+     *
+     * @param actor player
+     */
     public void remove(ActorId actor) {
         sessions.remove(actor);
     }

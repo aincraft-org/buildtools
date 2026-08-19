@@ -13,6 +13,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Pastes the request clipboard at the selection origin (pos1). Air cells clear destination
+ * blocks. Placement cost is charged for non-air after states.
+ */
 public final class PasteTool extends MutatingTool {
     @Override
     public String name() {

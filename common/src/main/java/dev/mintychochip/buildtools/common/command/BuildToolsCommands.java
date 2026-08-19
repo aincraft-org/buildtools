@@ -24,6 +24,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * Platform-neutral {@code /bt} dispatcher. Paper's {@code BuildToolsCommand} builds a
+ * {@link CommandContext} and calls {@link #execute(CommandContext)}.
+ */
 public final class BuildToolsCommands {
     private final PlayerSessionStore sessions;
     private final OperationGuard guard;
@@ -33,6 +37,15 @@ public final class BuildToolsCommands {
     private final WorldAccess world;
     private final SurvivalTransaction survival;
 
+    /**
+     * @param sessions player sessions
+     * @param guard limits
+     * @param executor tools
+     * @param blueprints named blueprints
+     * @param previews outline renderer
+     * @param world world
+     * @param survival inventory
+     */
     public BuildToolsCommands(
             PlayerSessionStore sessions,
             OperationGuard guard,
@@ -50,6 +63,13 @@ public final class BuildToolsCommands {
         this.survival = Objects.requireNonNull(survival, "survival");
     }
 
+    /**
+     * Dispatches {@code pos1}, {@code pos2}, {@code replace}, {@code fill}, {@code copy},
+     * {@code paste}, {@code undo}, {@code redo}, and {@code blueprint}.
+     *
+     * @param context resolved invocation
+     * @return player-facing result (validation and execute content, not merely a handler stub)
+     */
     public CommandResult execute(CommandContext context) {
         Objects.requireNonNull(context, "context");
         if (context.arguments().isEmpty()) {

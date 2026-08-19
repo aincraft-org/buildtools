@@ -5,9 +5,17 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ * Parses {@code minecraft:oak_stairs[facing=east]} strings and matches replace patterns.
+ */
 public final class BlockStates {
     private BlockStates() {}
 
+    /**
+     * @param raw namespaced key, optional {@code minecraft:} prefix, optional {@code [k=v,...]}
+     * @return parsed state
+     * @throws IllegalArgumentException if {@code raw} is blank or malformed
+     */
     public static BlockState parse(String raw) {
         if (raw == null || raw.isBlank()) {
             throw new IllegalArgumentException("namespacedKey must be present");
@@ -35,6 +43,14 @@ public final class BlockStates {
         return new BlockState(key, properties);
     }
 
+    /**
+     * Matches {@code actual} against {@code pattern}. An empty pattern property map matches any
+     * properties on the same namespaced key.
+     *
+     * @param actual world state
+     * @param pattern user-supplied filter
+     * @return {@code true} if {@code actual} satisfies {@code pattern}
+     */
     public static boolean matches(BlockState actual, BlockState pattern) {
         Objects.requireNonNull(actual, "actual");
         Objects.requireNonNull(pattern, "pattern");

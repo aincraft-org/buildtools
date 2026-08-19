@@ -12,6 +12,9 @@ import dev.mintychochip.buildtools.common.support.TestHarness;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Drives shipped replace, fill, copy, and paste through {@code BuildToolsCommands}.
+ */
 class ToolsLifecycleTest {
     @Test
     void replaceChangesOnlyMatchingBlocksAndPreviewEqualsExecute() {

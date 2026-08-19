@@ -12,6 +12,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
+/**
+ * In-memory {@link BlueprintStore} for tests. Bodies are kept as {@link Clipboard} objects.
+ */
 public final class MemoryBlueprintStore implements BlueprintStore {
     private final Map<ActorId, Map<String, Stored>> byOwner = new LinkedHashMap<>();
 

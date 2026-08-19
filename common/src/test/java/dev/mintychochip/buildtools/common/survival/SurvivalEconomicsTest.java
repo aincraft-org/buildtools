@@ -10,6 +10,10 @@ import dev.mintychochip.buildtools.api.world.BlockState;
 import dev.mintychochip.buildtools.common.support.TestHarness;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Drives charge, refund, permission, bypass, and cancelled {@code setBlock} through
+ * {@code /bt fill} and undo.
+ */
 class SurvivalEconomicsTest {
     @Test
     void undoRestoresBlocksAndRefundsNoMoreThanCharged() {

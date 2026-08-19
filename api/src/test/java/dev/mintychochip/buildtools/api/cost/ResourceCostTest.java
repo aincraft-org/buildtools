@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
+/** Tests {@link ResourceCost} copy-on-write, non-negative counts, and immutability. */
 class ResourceCostTest {
     @Test
     void copiesAndExposesItemCounts() {

@@ -10,6 +10,9 @@ import dev.mintychochip.buildtools.api.world.BlockState;
 import dev.mintychochip.buildtools.common.support.TestHarness;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Exercises the shipped {@code /bt} surface and asserts validation/execute result content.
+ */
 class BuildToolsCommandsTest {
     @Test
     void commandSurfaceReturnsValidationAndExecuteContent() {

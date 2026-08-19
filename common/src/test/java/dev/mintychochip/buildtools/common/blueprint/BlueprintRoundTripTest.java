@@ -13,6 +13,9 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+/**
+ * Save/load/list/delete plus FileBlueprintStore schematic round-trip including air holes.
+ */
 class BlueprintRoundTripTest {
     @Test
     void saveLoadPasteRoundTripsBlockStatesAndDeleteRemovesFromList() {

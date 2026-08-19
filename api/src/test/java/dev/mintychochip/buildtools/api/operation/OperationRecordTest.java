@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
+/** Tests that {@link OperationRecord} copies the change list and rejects mutation. */
 class OperationRecordTest {
     @Test
     void preservesOrderedBlockChangesAndRejectsMutation() {

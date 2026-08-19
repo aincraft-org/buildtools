@@ -17,12 +17,24 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
+/**
+ * Orchestrates preview → validate → charge → execute → history, and undo/redo refunds.
+ *
+ * <p>If a mutating preview is non-empty but execute applies no diffs (event cancel), the
+ * preview cost is refunded and execute is refused.
+ */
 public final class ToolExecutor {
     private final ToolRegistry registry;
     private final OperationHistory history;
     private final OperationGuard guard;
     private final PermissionService permissions;
 
+    /**
+     * @param registry tools
+     * @param history per-actor undo
+     * @param guard independent limits
+     * @param permissions {@code buildtools.tool.<name>}
+     */
     public ToolExecutor(
             ToolRegistry registry,
             OperationHistory history,
@@ -34,10 +46,23 @@ public final class ToolExecutor {
         this.permissions = Objects.requireNonNull(permissions, "permissions");
     }
 
+    /**
+     * @param request request
+     * @param world world
+     * @return tool preview
+     */
     public ToolPreview preview(ToolRequest request, WorldAccess world) {
         return registry.require(request.toolName()).preview(request, world);
     }
 
+    /**
+     * Checks unknown tool, permission, selection extent, preview size, affordability, then the tool.
+     *
+     * @param request request
+     * @param world world
+     * @param survival inventory
+     * @return first failure, or passed
+     */
     public ValidationResult validate(ToolRequest request, WorldAccess world, SurvivalTransaction survival) {
         Objects.requireNonNull(request, "request");
         Optional<Tool> tool = registry.find(request.toolName());
@@ -66,6 +91,15 @@ public final class ToolExecutor {
         return tool.get().validate(request, world, survival);
     }
 
+    /**
+     * Validates, charges, executes, harvests, and records history. Refunds and refuses when a
+     * non-empty preview applies zero changes.
+     *
+     * @param request request
+     * @param world world
+     * @param survival inventory
+     * @return record if executed (including non-mutating copy), empty if refused
+     */
     public Optional<OperationRecord> execute(
             ToolRequest request, WorldAccess world, SurvivalTransaction survival) {
         ValidationResult validation = validate(request, world, survival);
@@ -102,12 +136,29 @@ public final class ToolExecutor {
         return Optional.of(record);
     }
 
+    /**
+     * Restores {@code before} states, reclaims harvest, and refunds the recorded charge.
+     *
+     * @param actor actor
+     * @param world world
+     * @param survival inventory
+     * @return undone record, if any
+     */
     public Optional<OperationRecord> undo(ActorId actor, WorldAccess world, SurvivalTransaction survival) {
         Optional<OperationRecord> record = history.undo(actor);
         record.ifPresent(value -> applyUndo(actor, value, world, survival));
         return record;
     }
 
+    /**
+     * Re-applies {@code after} states and charges the recorded cost. Unaffordable redo is left
+     * on the redo stack.
+     *
+     * @param actor actor
+     * @param world world
+     * @param survival inventory
+     * @return redone record, if any
+     */
     public Optional<OperationRecord> redo(ActorId actor, WorldAccess world, SurvivalTransaction survival) {
         Optional<OperationRecord> record = history.redo(actor);
         if (record.isEmpty()) {

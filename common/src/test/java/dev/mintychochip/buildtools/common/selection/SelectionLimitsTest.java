@@ -12,6 +12,9 @@ import dev.mintychochip.buildtools.api.world.BlockState;
 import dev.mintychochip.buildtools.common.support.TestHarness;
 import org.junit.jupiter.api.Test;
 
+/**
+ * Drives {@code /bt pos1}/{@code pos2} and fill to prove the three limits are independent.
+ */
 class SelectionLimitsTest {
     @Test
     void twoPointCuboidVolumeAndBoundsMatchCorners() {

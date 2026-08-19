@@ -15,6 +15,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Base for fill, replace, and paste. Preview and execute share {@link #plan}; a cancelled
+ * {@code setBlock} rolls the world back and returns an empty change list.
+ */
 abstract class MutatingTool implements Tool {
     @Override
     public final ToolPreview preview(ToolRequest request, WorldAccess world) {
@@ -59,8 +63,19 @@ abstract class MutatingTool implements Tool {
         }
     }
 
+    /**
+     * Builds the exact diffs this invocation would apply.
+     *
+     * @param request request
+     * @param world world
+     * @return plan whose positions become the preview affected set
+     */
     protected abstract BlockPlan plan(ToolRequest request, WorldAccess world);
 
+    /**
+     * @param request request
+     * @return acting player
+     */
     protected static ActorId actor(ToolRequest request) {
         return request.actorId();
     }

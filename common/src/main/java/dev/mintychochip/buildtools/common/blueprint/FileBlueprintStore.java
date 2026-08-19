@@ -17,9 +17,16 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 
+/**
+ * Flat-file store: {@code <root>/<uuid>/<name>.schem} plus JSON metadata. The Paper plugin
+ * uses {@code plugins/BuildTools/blueprints}.
+ */
 public final class FileBlueprintStore implements BlueprintStore {
     private final Path root;
 
+    /**
+     * @param root directory that will contain per-player folders
+     */
     public FileBlueprintStore(Path root) {
         this.root = Objects.requireNonNull(root, "root");
     }
@@ -150,6 +157,10 @@ public final class FileBlueprintStore implements BlueprintStore {
         return raw.substring(0, end);
     }
 
+    /**
+     * @param uuid player UUID
+     * @return actor id
+     */
     public static ActorId ownerFrom(UUID uuid) {
         return new ActorId(uuid);
     }

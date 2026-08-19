@@ -6,6 +6,9 @@ import dev.mintychochip.buildtools.api.service.PreviewRenderer;
 import dev.mintychochip.buildtools.api.tool.ToolPreview;
 import java.util.Objects;
 
+/**
+ * Preview renderer that only rejects {@code null}. Used in JVM tests and headless wiring.
+ */
 public final class NoOpPreviewRenderer implements PreviewRenderer {
     @Override
     public void show(ActorId actor, ToolPreview preview) {

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import org.junit.jupiter.api.Test;
 
+/** Tests {@link BlockPosition} equality, hashing, and null world rejection. */
 class BlockPositionTest {
     @Test
     void equalityIsWorldAndCoordinates() {

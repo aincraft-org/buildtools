@@ -19,8 +19,13 @@ import dev.mintychochip.buildtools.common.tool.ToolRegistry;
 import java.util.Arrays;
 import java.util.UUID;
 
+/**
+ * Wires the shipped command dispatcher, tools, and in-memory ports for JVM tests.
+ */
 public final class TestHarness {
+    /** Default test actor. */
     public static final ActorId ACTOR = new ActorId(UUID.fromString("00000000-0000-0000-0000-0000000000aa"));
+    /** World id used by {@link #pos(int, int, int)}. */
     public static final String WORLD = "world";
 
     public final PlayerSessionStore sessions = new PlayerSessionStore();
@@ -37,10 +42,14 @@ public final class TestHarness {
     public final BlueprintManager blueprints;
     public final BuildToolsCommands commands;
 
+    /** Uses {@link OperationLimits#defaults()}. */
     public TestHarness() {
         this(OperationLimits.defaults());
     }
 
+    /**
+     * @param limits limits for the guard
+     */
     public TestHarness(OperationLimits limits) {
         this.limits = limits;
         this.guard = new OperationGuard(limits);
@@ -54,10 +63,22 @@ public final class TestHarness {
         this.commands = new BuildToolsCommands(sessions, guard, executor, blueprints, previews, world, survival);
     }
 
+    /**
+     * @param origin player origin
+     * @param target look target
+     * @param args including the subcommand
+     * @return context for {@link #ACTOR}
+     */
     public CommandContext command(BlockPosition origin, BlockPosition target, String... args) {
         return new CommandContext(ACTOR, WORLD, origin, target, Arrays.asList(args));
     }
 
+    /**
+     * @param x X
+     * @param y Y
+     * @param z Z
+     * @return position in {@link #WORLD}
+     */
     public BlockPosition pos(int x, int y, int z) {
         return new BlockPosition(WORLD, x, y, z);
     }

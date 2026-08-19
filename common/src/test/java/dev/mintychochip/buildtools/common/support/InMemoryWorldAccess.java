@@ -9,15 +9,32 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Hash-map world for tests. {@link #cancel(BlockPosition)} makes {@link #setBlock} return
+ * {@code false} without mutating, simulating a cancelled place/break event.
+ */
 public final class InMemoryWorldAccess implements WorldAccess {
     private final Map<BlockPosition, BlockState> blocks = new HashMap<>();
     private final Set<BlockPosition> cancelled = new HashSet<>();
 
+    /**
+     * @param position coordinate
+     * @param state state
+     * @return {@code this}
+     */
     public InMemoryWorldAccess put(BlockPosition position, BlockState state) {
         blocks.put(position, state);
         return this;
     }
 
+    /**
+     * Fills the inclusive box with {@code state}.
+     *
+     * @param min inclusive min
+     * @param max inclusive max
+     * @param state state
+     * @return {@code this}
+     */
     public InMemoryWorldAccess fill(
             BlockPosition min, BlockPosition max, BlockState state) {
         for (int x = min.x(); x <= max.x(); x++) {
@@ -30,6 +47,12 @@ public final class InMemoryWorldAccess implements WorldAccess {
         return this;
     }
 
+    /**
+     * Subsequent {@link #setBlock} calls at {@code position} fail and leave the world unchanged.
+     *
+     * @param position coordinate
+     * @return {@code this}
+     */
     public InMemoryWorldAccess cancel(BlockPosition position) {
         cancelled.add(position);
         return this;

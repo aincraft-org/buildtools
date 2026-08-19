@@ -11,9 +11,17 @@ import org.bukkit.Server;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+/**
+ * Inventory charge/refund using Paper player inventories. Creative and
+ * {@code buildtools.bypass.creative}/{@code .survival} skip cost. Refund leftovers drop
+ * at the player.
+ */
 public final class PaperSurvivalTransaction implements SurvivalTransaction {
     private final Server server;
 
+    /**
+     * @param server running server
+     */
     public PaperSurvivalTransaction(Server server) {
         this.server = Objects.requireNonNull(server, "server");
     }

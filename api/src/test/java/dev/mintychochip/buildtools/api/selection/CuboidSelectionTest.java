@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import dev.mintychochip.buildtools.api.world.BlockPosition;
 import org.junit.jupiter.api.Test;
 
+/** Tests inclusive cuboid volume, extent, and same-world corners. */
 class CuboidSelectionTest {
     @Test
     void volumeAndExtentAreInclusive() {

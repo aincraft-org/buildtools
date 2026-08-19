@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+/** Tests register, resolve, duplicate names, and unknown lookups. */
 class ToolRegistryTest {
     @Test
     void registersAndResolvesByName() {

@@ -5,6 +5,10 @@ import dev.mintychochip.buildtools.api.service.PermissionService;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * Test permission set. Defaults to allow-all; {@link #denyAll()} and {@link #grant(String)}
+ * switch to an explicit allow-list.
+ */
 public final class MapPermissions implements PermissionService {
     private final Set<String> allowed = new HashSet<>();
     private boolean allowAll = true;

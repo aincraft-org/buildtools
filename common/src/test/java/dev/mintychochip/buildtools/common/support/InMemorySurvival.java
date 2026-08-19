@@ -10,6 +10,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Counted inventory for tests. Refund overflow beyond {@link #withCapacity(int)} is recorded
+ * as drops. Creative and bypass skip charge/refund.
+ */
 public final class InMemorySurvival implements SurvivalTransaction {
     private final Map<ActorId, Map<String, Integer>> inventories = new HashMap<>();
     private final List<ResourceCost> charges = new ArrayList<>();
@@ -19,21 +23,37 @@ public final class InMemorySurvival implements SurvivalTransaction {
     private final Set<ActorId> bypass = new HashSet<>();
     private int inventoryCapacity = Integer.MAX_VALUE;
 
+    /**
+     * Adds items without respecting capacity.
+     *
+     * @param actor player
+     * @param item item key
+     * @param count amount
+     * @return {@code this}
+     */
     public InMemorySurvival give(ActorId actor, String item, int count) {
         inventories.computeIfAbsent(actor, ignored -> new HashMap<>()).merge(item, count, Integer::sum);
         return this;
     }
 
+    /** @param actor player treated as creative @return {@code this} */
     public InMemorySurvival creative(ActorId actor) {
         creative.add(actor);
         return this;
     }
 
+    /** @param actor player with survival bypass @return {@code this} */
     public InMemorySurvival bypass(ActorId actor) {
         bypass.add(actor);
         return this;
     }
 
+    /**
+     * Caps how many items refund can place in inventory; the rest become drops.
+     *
+     * @param capacity max items
+     * @return {@code this}
+     */
     public InMemorySurvival withCapacity(int capacity) {
         this.inventoryCapacity = capacity;
         return this;

@@ -7,6 +7,7 @@ import dev.mintychochip.buildtools.api.tool.ToolPreview;
 import java.util.ArrayList;
 import java.util.List;
 
+/** Records {@link #show} and {@link #showSelection} calls for assertions. */
 public final class RecordingPreviewRenderer implements PreviewRenderer {
     private final List<CuboidSelection> selections = new ArrayList<>();
     private final List<ToolPreview> previews = new ArrayList<>();

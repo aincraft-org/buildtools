@@ -10,12 +10,24 @@ import java.io.ByteArrayOutputStream;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * Sponge Schematic v2 encode/decode over gzip NBT. Decode keeps air so paste can clear holes.
+ */
 public final class SchematicCodec {
+    /** Schematic format version. */
     public static final int SCHEMATIC_VERSION = 2;
+    /** Approximate data version for Paper 26.2. */
     public static final int DATA_VERSION = 4440;
 
     private SchematicCodec() {}
 
+    /**
+     * @param clipboard body including air
+     * @param name blueprint name
+     * @param owner owner UUID string
+     * @param timestamp epoch millis
+     * @return gzip-compressed named compound
+     */
     public static byte[] encode(Clipboard clipboard, String name, String owner, long timestamp) {
         Dimensions dimensions = dimensions(clipboard);
         Map<String, Integer> palette = new LinkedHashMap<>();
@@ -48,6 +60,10 @@ public final class SchematicCodec {
         return NbtIo.writeGzipNamed("Schematic", schematic);
     }
 
+    /**
+     * @param data gzip schematic bytes
+     * @return clipboard whose map includes air cells
+     */
     public static Clipboard decode(byte[] data) {
         NbtTag.NbtCompound schematic = NbtIo.readGzipNamed(data);
         int width = schematic.getShort("Width");
@@ -76,6 +92,12 @@ public final class SchematicCodec {
         return new Clipboard(world, blocks);
     }
 
+    /**
+     * Inclusive dimensions covering every stored offset.
+     *
+     * @param clipboard clipboard
+     * @return width/height/length
+     */
     public static Dimensions dimensionsOf(Clipboard clipboard) {
         return dimensions(clipboard);
     }
@@ -136,6 +158,13 @@ public final class SchematicCodec {
         output.write(remaining);
     }
 
+    /**
+     * Inclusive schematic size.
+     *
+     * @param width X
+     * @param height Y
+     * @param length Z
+     */
     public record Dimensions(int width, int height, int length) {}
 
     private static final class VarIntReader {

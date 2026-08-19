@@ -8,17 +8,31 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
+/**
+ * Bounded cuboid outline samples for BlockDisplay / particle previews.
+ */
 public final class PreviewGeometry {
+    /** Default cap so large selections never spawn one entity per block. */
     public static final int DEFAULT_MAX_DISPLAYS = 256;
 
     private PreviewGeometry() {}
 
+    /**
+     * Outline using {@link #DEFAULT_MAX_DISPLAYS}.
+     *
+     * @param selection cuboid
+     * @return unique edge samples, size at most the default cap
+     */
     public static List<BlockPosition> outline(CuboidSelection selection) {
         return outline(selection, DEFAULT_MAX_DISPLAYS);
     }
 
     /**
      * Bounded aggregated cuboid outline. Samples the 12 edges; never one point per volume block.
+     *
+     * @param selection cuboid
+     * @param maxDisplays hard cap on returned points
+     * @return unique edge samples
      */
     public static List<BlockPosition> outline(CuboidSelection selection, int maxDisplays) {
         Objects.requireNonNull(selection, "selection");
