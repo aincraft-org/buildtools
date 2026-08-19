@@ -1,0 +1,34 @@
+name: BuildTools
+version: ${version}
+main: dev.mintychochip.buildtools.paper.BuildToolsPlugin
+api-version: "26.2"
+authors:
+  - mintychochip
+description: Survival-friendly building assistant
+commands:
+  bt:
+    description: BuildTools command root
+    usage: /bt <pos1|pos2|replace|fill|copy|paste|undo|redo|blueprint>
+    permission: buildtools.command
+permissions:
+  buildtools.command:
+    description: Use the /bt command root
+    default: true
+  buildtools.tool.replace:
+    description: Use /bt replace
+    default: true
+  buildtools.tool.fill:
+    description: Use /bt fill
+    default: true
+  buildtools.tool.copy:
+    description: Use /bt copy
+    default: true
+  buildtools.tool.paste:
+    description: Use /bt paste
+    default: true
+  buildtools.bypass.creative:
+    description: Skip survival inventory cost
+    default: op
+  buildtools.bypass.survival:
+    description: Skip survival inventory cost
+    default: op
