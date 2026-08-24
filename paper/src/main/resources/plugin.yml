@@ -14,18 +14,21 @@ permissions:
   buildtools.command:
     description: Use the /bt command root
     default: true
-  buildtools.tool.replace:
-    description: Use /bt replace
-    default: true
-  buildtools.tool.fill:
-    description: Use /bt fill
+  buildtools.tool.survival_fill:
+    description: Use /bt survival_fill and the gadget's safe fill
     default: true
   buildtools.tool.copy:
     description: Use /bt copy
     default: true
+  buildtools.tool.fill:
+    description: Use /bt fill (overwrites any block)
+    default: op
+  buildtools.tool.replace:
+    description: Use /bt replace (replaces matched blocks)
+    default: op
   buildtools.tool.paste:
     description: Use /bt paste
-    default: true
+    default: op
   buildtools.bypass.creative:
     description: Skip survival inventory cost
     default: op
