@@ -6,5 +6,7 @@ public enum PreviewMode {
     BLOCK_CLEAR,
     TEXT_LOW,
     TEXT_HIGH,
-    PARTICLE;
+    PARTICLE,
+    EXPERIMENTAL_ITEM,
+    EXPERIMENTAL_ARMOR;
 }
