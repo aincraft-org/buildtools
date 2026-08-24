@@ -17,28 +17,23 @@ import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Color;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
-import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
-import org.bukkit.inventory.EquipmentSlot;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Transformation;
 import org.joml.AxisAngle4f;
 import org.joml.Vector3f;
 
 /**
- * Multi-mode preview renderer. Defaults to {@link BlockDisplay} with translucent glass; other
- * modes demonstrate TextDisplay, ItemDisplay, armor-stand heads, and particle outlines.
+ * Multi-mode preview renderer. Viable modes are translucent-glass {@link BlockDisplay},
+ * six-face alpha {@link TextDisplay}, and particle outline.
  */
 public final class PaperPreviewRenderer implements PreviewRenderer {
     static final int MAX_DISPLAYS = PreviewGeometry.DEFAULT_MAX_DISPLAYS;
@@ -48,35 +43,30 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
     private final PlayerSessionStore sessions;
     private final Map<ActorId, List<UUID>> spawned = new HashMap<>();
 
-    /**
-     * @param plugin owning plugin
-     * @param sessions player sessions (for per-player preview mode)
-     */
     public PaperPreviewRenderer(JavaPlugin plugin, PlayerSessionStore sessions) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.server = plugin.getServer();
         this.sessions = Objects.requireNonNull(sessions, "sessions");
+    }
+    /**
+     * Plans a bounded outline for {@code selection}. Exposed for unit tests without a server.
+     */
+    public static List<BlockPosition> plan(CuboidSelection selection) {
+        return PreviewGeometry.outline(selection, MAX_DISPLAYS);
     }
 
     @Override
     public void show(ActorId actor, ToolPreview preview) {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(preview, "preview");
-        showPositions(actor, preview.region(), plan(preview.region()));
+        render(actor, preview.region());
     }
 
     @Override
     public void showSelection(ActorId actor, CuboidSelection selection) {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(selection, "selection");
-        showPositions(actor, selection, plan(selection));
-    }
-
-    /**
-     * Plans a bounded outline for {@code selection}. Exposed for unit tests without a server.
-     */
-    public static List<BlockPosition> plan(CuboidSelection selection) {
-        return PreviewGeometry.outline(selection, MAX_DISPLAYS);
+        render(actor, selection);
     }
 
     @Override
@@ -94,7 +84,7 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
         }
     }
 
-    private void showPositions(ActorId actor, CuboidSelection region, List<BlockPosition> points) {
+    private void render(ActorId actor, CuboidSelection region) {
         clear(actor);
         Player player = server.getPlayer(actor.value());
         if (player == null) {
@@ -105,17 +95,86 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
             return;
         }
         PreviewMode mode = sessions.session(actor).previewMode();
+        switch (mode) {
+            case TEXT_LOW -> showTextCube(actor, region, world, player, Color.fromARGB(64, 0, 170, 255));
+            case TEXT_HIGH -> showTextCube(actor, region, world, player, Color.fromARGB(180, 0, 170, 255));
+            case PARTICLE -> showParticles(actor, region, world, player);
+            default -> showBlockDisplays(actor, region, world, player, mode);
+        }
+    }
+
+    private void showTextCube(ActorId actor, CuboidSelection region, World world, Player player, Color color) {
+        BlockPosition min = region.min();
+        BlockPosition max = region.max();
+        List<UUID> ids = new ArrayList<>();
+
+        // Six faces; face centers are at the outer boundary of the inclusive block box.
+        float xMid = (min.x() + max.x() + 1) / 2.0f;
+        float yMid = (min.y() + max.y() + 1) / 2.0f;
+        float zMid = (min.z() + max.z() + 1) / 2.0f;
+
+        float wX = region.width();
+        float hY = region.height();
+        float dZ = region.depth();
+
+        Face[] faces = {
+                new Face(new Location(world, min.x(), yMid, zMid), dZ, hY),         // -X
+                new Face(new Location(world, max.x() + 1, yMid, zMid), dZ, hY),    // +X
+                new Face(new Location(world, xMid, min.y(), zMid), wX, dZ),        // -Y
+                new Face(new Location(world, xMid, max.y() + 1, zMid), wX, dZ),    // +Y
+                new Face(new Location(world, xMid, yMid, min.z()), wX, hY),        // -Z
+                new Face(new Location(world, xMid, yMid, max.z() + 1), wX, hY)     // +Z
+        };
+
+        for (Face face : faces) {
+            try {
+                TextDisplay display = world.spawn(face.location(), TextDisplay.class, entity -> {
+                    entity.text(Component.empty());
+                    entity.setDefaultBackground(false);
+                    entity.setBackgroundColor(color);
+                    entity.setTextOpacity((byte) 0);
+                    entity.setSeeThrough(true);
+                    entity.setBillboard(Display.Billboard.CENTER);
+                    entity.setDisplayWidth(face.width);
+                    entity.setDisplayHeight(face.height);
+                    entity.setPersistent(false);
+                    entity.setVisibleByDefault(false);
+                });
+                player.showEntity(plugin, display);
+                ids.add(display.getUniqueId());
+            } catch (RuntimeException ignored) {
+                // fall through to no preview
+            }
+        }
+        spawned.put(actor, ids);
+    }
+
+    private void showBlockDisplays(ActorId actor, CuboidSelection region, World world, Player player, PreviewMode mode) {
+        String block = switch (mode) {
+            case BLOCK_TINTED -> "minecraft:tinted_glass";
+            case BLOCK_CLEAR -> "minecraft:glass";
+            default -> "minecraft:light_blue_stained_glass";
+        };
+        BlockData data = server.createBlockData(block);
+        List<BlockPosition> points = PreviewGeometry.outline(region, MAX_DISPLAYS);
         List<UUID> ids = new ArrayList<>();
         boolean usedParticles = false;
 
         for (BlockPosition point : points) {
             Location location = new Location(world, point.x(), point.y(), point.z());
             try {
-                Entity entity = spawnPreview(world, location, mode, player);
-                if (entity != null) {
-                    player.showEntity(plugin, entity);
-                    ids.add(entity.getUniqueId());
-                }
+                BlockDisplay display = world.spawn(location, BlockDisplay.class, entity -> {
+                    entity.setBlock(data);
+                    entity.setPersistent(false);
+                    entity.setTransformation(new Transformation(
+                            new Vector3f(0.05f, 0.05f, 0.05f),
+                            new AxisAngle4f(),
+                            new Vector3f(0.9f, 0.9f, 0.9f),
+                            new AxisAngle4f()));
+                    entity.setVisibleByDefault(false);
+                });
+                player.showEntity(plugin, display);
+                ids.add(display.getUniqueId());
             } catch (RuntimeException ignored) {
                 usedParticles = true;
                 spawnParticle(player, new Location(world, point.x() + 0.5, point.y() + 0.5, point.z() + 0.5));
@@ -129,73 +188,12 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
         spawned.put(actor, ids);
     }
 
-    private Entity spawnPreview(World world, Location location, PreviewMode mode, Player player) {
-        return switch (mode) {
-            case BLOCK_LIGHT_BLUE -> spawnBlockDisplay(world, location, "minecraft:light_blue_stained_glass");
-            case BLOCK_TINTED -> spawnBlockDisplay(world, location, "minecraft:tinted_glass");
-            case BLOCK_CLEAR -> spawnBlockDisplay(world, location, "minecraft:glass");
-            case TEXT_LOW -> spawnTextDisplay(world, location, Color.fromARGB(64, 0, 170, 255));
-            case TEXT_HIGH -> spawnTextDisplay(world, location, Color.fromARGB(180, 0, 170, 255));
-            case ITEM -> spawnItemDisplay(world, location);
-            case ARMOR -> spawnArmorStand(world, location);
-            case PARTICLE -> {
-                spawnParticle(player, new Location(world, location.getX() + 0.5, location.getY() + 0.5, location.getZ() + 0.5));
-                yield null;
-            }
-        };
-    }
-
-    private static BlockDisplay spawnBlockDisplay(World world, Location location, String block) {
-        return world.spawn(location, BlockDisplay.class, entity -> {
-            entity.setBlock(entity.getServer().createBlockData(block));
-            entity.setPersistent(false);
-            entity.setTransformation(new Transformation(
-                    new Vector3f(0.05f, 0.05f, 0.05f),
-                    new AxisAngle4f(),
-                    new Vector3f(0.9f, 0.9f, 0.9f),
-                    new AxisAngle4f()));
-            entity.setVisibleByDefault(false);
-        });
-    }
-
-    private static TextDisplay spawnTextDisplay(World world, Location location, Color color) {
-        return world.spawn(location, TextDisplay.class, entity -> {
-            entity.text(Component.empty());
-            entity.setDefaultBackground(false);
-            entity.setBackgroundColor(color);
-            entity.setTextOpacity((byte) 0);
-            entity.setSeeThrough(true);
-            entity.setBillboard(Display.Billboard.CENTER);
-            entity.setDisplayWidth(0.9f);
-            entity.setDisplayHeight(0.9f);
-            entity.setPersistent(false);
-            entity.setVisibleByDefault(false);
-        });
-    }
-
-    private static ItemDisplay spawnItemDisplay(World world, Location location) {
-        return world.spawn(location, ItemDisplay.class, entity -> {
-            entity.setItemStack(new ItemStack(Material.LIGHT_BLUE_STAINED_GLASS));
-            entity.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.HEAD);
-            entity.setDisplayWidth(0.8f);
-            entity.setDisplayHeight(0.8f);
-            entity.setPersistent(false);
-            entity.setVisibleByDefault(false);
-        });
-    }
-
-    private static ArmorStand spawnArmorStand(World world, Location location) {
-        return world.spawn(location.clone().add(0, -0.5, 0), ArmorStand.class, stand -> {
-            stand.setVisible(false);
-            stand.setMarker(true);
-            stand.setSmall(true);
-            stand.setPersistent(false);
-            stand.setInvulnerable(true);
-            stand.setGravity(false);
-            stand.setBasePlate(false);
-            stand.setArms(false);
-            stand.setItem(EquipmentSlot.HEAD, new ItemStack(Material.LIGHT_BLUE_STAINED_GLASS));
-        });
+    private void showParticles(ActorId actor, CuboidSelection region, World world, Player player) {
+        List<BlockPosition> points = PreviewGeometry.outline(region, MAX_DISPLAYS);
+        for (BlockPosition point : points) {
+            spawnParticle(player, new Location(world, point.x() + 0.5, point.y() + 0.5, point.z() + 0.5));
+        }
+        spawned.put(actor, List.of());
     }
 
     private static void spawnParticle(Player player, Location location) {
@@ -209,4 +207,6 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
                 0,
                 new Particle.DustOptions(Color.AQUA, 1.0f));
     }
+
+    private record Face(Location location, float width, float height) {}
 }
