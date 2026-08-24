@@ -26,6 +26,11 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.RayTraceResult;
 
+/**
+ * Handles the BuildTools gadget. Only consumes/cancels the specific gestures that are
+ * explicitly recognized; unhandled clicks (e.g. a normal left-click) fall through to
+ * vanilla behavior.
+ */
 public final class GadgetListener implements Listener {
     private final JavaPlugin plugin;
     private final BuildToolsCommands commands;
@@ -63,87 +68,98 @@ public final class GadgetListener implements Listener {
             return;
         }
 
-        event.setCancelled(true);
         Action action = event.getAction();
         boolean sneaking = player.isSneaking();
+        boolean consumed = false;
 
         if (sneaking && (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK)) {
-            cycleMode(player);
-            return;
+            consumed = cycleMode(player);
+        } else if (sneaking && (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK)) {
+            consumed = handleShiftRightClick(player, targetOf(player));
+        } else if (!sneaking && (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK)) {
+            consumed = handleRightClick(player, targetOf(player));
         }
 
-        if (sneaking && (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK)) {
-            handleShiftRightClick(player, targetOf(player));
-            return;
-        }
-
-        if (!sneaking && (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK)) {
-            handleRightClick(player, targetOf(player));
+        if (consumed) {
+            event.setCancelled(true);
         }
     }
 
-    private void cycleMode(Player player) {
+    private boolean cycleMode(Player player) {
         ToolMode next = sessions.session(actorOf(player)).mode().next();
         sessions.session(actorOf(player)).setMode(next);
         player.sendActionBar(Component.text("BuildTools mode: " + next.name().toLowerCase(), NamedTextColor.GREEN));
+        return true;
     }
 
-    private void handleShiftRightClick(Player player, BlockPosition target) {
+    private boolean handleShiftRightClick(Player player, BlockPosition target) {
         if (target == null) {
             player.sendActionBar(Component.text("No target block", NamedTextColor.RED));
-            return;
+            return true;
         }
         ToolMode mode = sessions.session(actorOf(player)).mode();
         if (mode == ToolMode.PASTE) {
             sessions.session(actorOf(player)).setPos1(target);
             dispatch(player, target, List.of("paste"));
-            return;
+            return true;
         }
         dispatch(player, target, List.of("pos1"));
+        return true;
     }
 
-    private void handleRightClick(Player player, BlockPosition target) {
+    private boolean handleRightClick(Player player, BlockPosition target) {
         if (target == null) {
             player.sendActionBar(Component.text("No target block", NamedTextColor.RED));
-            return;
+            return true;
         }
         ToolMode mode = sessions.session(actorOf(player)).mode();
-        switch (mode) {
+        return switch (mode) {
             case FILL -> handleFill(player, target);
             case REPLACE -> handleReplace(player, target);
-            case COPY -> dispatch(player, target, List.of("pos2"), List.of("copy"));
-            default -> player.sendActionBar(Component.text("Use shift-right-click to set pos1", NamedTextColor.RED));
-        }
+            case COPY -> handleCopy(player, target);
+            default -> false;
+        };
     }
 
-    private void handleFill(Player player, BlockPosition target) {
+    private boolean handleFill(Player player, BlockPosition target) {
         ItemStack offhand = player.getInventory().getItemInOffHand();
         if (offhand.getType().isAir() || !offhand.getType().isBlock()) {
             player.sendActionBar(Component.text("Hold a block in your offhand to fill", NamedTextColor.RED));
-            return;
+            return true;
         }
         if (sessions.session(actorOf(player)).pos1().isEmpty()) {
             player.sendActionBar(Component.text("Set pos1 with shift-right-click first", NamedTextColor.RED));
-            return;
+            return true;
         }
         String material = "minecraft:" + offhand.getType().getKey().getKey();
         dispatch(player, target, List.of("pos2"), List.of("survival_fill", material));
+        return true;
     }
 
-    private void handleReplace(Player player, BlockPosition target) {
+    private boolean handleReplace(Player player, BlockPosition target) {
         ItemStack offhand = player.getInventory().getItemInOffHand();
         if (offhand.getType().isAir() || !offhand.getType().isBlock()) {
             player.sendActionBar(Component.text("Hold a block in your offhand for replace-to", NamedTextColor.RED));
-            return;
+            return true;
         }
         if (sessions.session(actorOf(player)).pos1().isEmpty()) {
             player.sendActionBar(Component.text("Set pos1 with shift-right-click first", NamedTextColor.RED));
-            return;
+            return true;
         }
         BlockPosition pos1 = sessions.session(actorOf(player)).pos1().orElseThrow();
         String from = world.getBlock(pos1).namespacedKey();
         String to = "minecraft:" + offhand.getType().getKey().getKey();
         dispatch(player, target, List.of("pos2"), List.of("replace", from, to));
+        return true;
+    }
+
+    private boolean handleCopy(Player player, BlockPosition target) {
+        if (sessions.session(actorOf(player)).pos1().isEmpty()) {
+            player.sendActionBar(Component.text("Set pos1 with shift-right-click first", NamedTextColor.RED));
+            return true;
+        }
+        dispatch(player, target, List.of("pos2"), List.of("copy"));
+        return true;
     }
 
     private void dispatch(Player player, BlockPosition target, List<String> preArgs, List<String> toolArgs) {
