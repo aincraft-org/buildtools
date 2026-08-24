@@ -1,11 +1,11 @@
 package dev.mintychochip.buildtools.common.session;
 
 import dev.mintychochip.buildtools.api.clipboard.Clipboard;
+import dev.mintychochip.buildtools.api.preview.PreviewMode;
 import dev.mintychochip.buildtools.api.selection.CuboidSelection;
 import dev.mintychochip.buildtools.api.world.BlockPosition;
 import java.util.Objects;
 import java.util.Optional;
-
 /**
  * Per-player pos1/pos2 and unnamed clipboard. A selection exists only when both corners are set.
  */
@@ -14,7 +14,7 @@ public final class PlayerSession {
     private BlockPosition pos2;
     private Clipboard clipboard;
     private ToolMode mode = ToolMode.FILL;
-
+    private PreviewMode previewMode = PreviewMode.BLOCK_LIGHT_BLUE;
     /** @return first corner if set */
     public Optional<BlockPosition> pos1() {
         return Optional.ofNullable(pos1);
@@ -57,17 +57,27 @@ public final class PlayerSession {
     public ToolMode mode() {
         return mode;
     }
-
     /** @param mode new tool mode */
     public void setMode(ToolMode mode) {
         this.mode = Objects.requireNonNull(mode, "mode");
     }
 
-    /** Clears corners, clipboard, and mode. */
+    /** @return current preview mode */
+    public PreviewMode previewMode() {
+        return previewMode;
+    }
+
+    /** @param previewMode new preview mode */
+    public void setPreviewMode(PreviewMode previewMode) {
+        this.previewMode = Objects.requireNonNull(previewMode, "previewMode");
+    }
+
+    /** Clears corners, clipboard, mode, and preview mode. */
     public void clear() {
         pos1 = null;
         pos2 = null;
         clipboard = null;
         mode = ToolMode.FILL;
+        previewMode = PreviewMode.BLOCK_LIGHT_BLUE;
     }
 }

@@ -5,6 +5,7 @@ import dev.mintychochip.buildtools.api.blueprint.BlueprintMeta;
 import dev.mintychochip.buildtools.api.command.CommandContext;
 import dev.mintychochip.buildtools.api.command.CommandResult;
 import dev.mintychochip.buildtools.api.operation.OperationRecord;
+import dev.mintychochip.buildtools.api.preview.PreviewMode;
 import dev.mintychochip.buildtools.api.selection.CuboidSelection;
 import dev.mintychochip.buildtools.api.service.PreviewRenderer;
 import dev.mintychochip.buildtools.api.service.SurvivalTransaction;
@@ -73,7 +74,7 @@ public final class BuildToolsCommands {
     public CommandResult execute(CommandContext context) {
         Objects.requireNonNull(context, "context");
         if (context.arguments().isEmpty()) {
-            return CommandResult.fail("Usage: /bt <pos1|pos2|replace|fill|survival_fill|copy|paste|undo|redo|blueprint|wand>");
+            return CommandResult.fail("Usage: /bt <pos1|pos2|replace|fill|survival_fill|copy|paste|undo|redo|blueprint|wand|previewmode>");
         }
         String command = context.argument(0).toLowerCase();
         return switch (command) {
@@ -87,6 +88,7 @@ public final class BuildToolsCommands {
             case "undo" -> undo(context);
             case "redo" -> redo(context);
             case "blueprint", "bp" -> blueprint(context);
+            case "previewmode" -> previewMode(context);
             default -> CommandResult.fail("Unknown subcommand: " + command);
         };
     }
@@ -301,5 +303,25 @@ public final class BuildToolsCommands {
 
     private static String format(BlockPosition position) {
         return position.x() + "," + position.y() + "," + position.z();
+    }
+
+    private CommandResult previewMode(CommandContext context) {
+        if (context.arguments().size() < 2) {
+            return CommandResult.fail("Usage: /bt previewmode <" + java.util.Arrays.stream(PreviewMode.values())
+                    .map(m -> m.name().toLowerCase(java.util.Locale.ROOT))
+                    .collect(Collectors.joining("|")) + ">");
+        }
+        String name = context.argument(1).toUpperCase(java.util.Locale.ROOT);
+        PreviewMode mode;
+        try {
+            mode = PreviewMode.valueOf(name);
+        } catch (IllegalArgumentException e) {
+            return CommandResult.fail("Unknown preview mode: " + context.argument(1));
+        }
+        PlayerSession session = sessions.session(context.actorId());
+        session.setPreviewMode(mode);
+        previews.clear(context.actorId());
+        session.selection().ifPresent(selection -> previews.showSelection(context.actorId(), selection));
+        return CommandResult.ok("Preview mode: " + mode.name().toLowerCase(java.util.Locale.ROOT));
     }
 }

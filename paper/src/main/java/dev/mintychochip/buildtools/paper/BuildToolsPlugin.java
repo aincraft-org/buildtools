@@ -55,7 +55,7 @@ public final class BuildToolsPlugin extends JavaPlugin implements Listener {
         this.history = new OperationHistory(20);
         this.toolExecutor = new ToolExecutor(
                 toolRegistry, history, new OperationGuard(limits), new PaperPermissionService(getServer()));
-        this.previewRenderer = new PaperPreviewRenderer(this);
+        this.previewRenderer = new PaperPreviewRenderer(this, sessions);
         this.worldAccess = new PaperWorldAccess(getServer());
         this.survivalTransaction = new PaperSurvivalTransaction(getServer());
         this.taskScheduler = new PaperTaskScheduler(this);
