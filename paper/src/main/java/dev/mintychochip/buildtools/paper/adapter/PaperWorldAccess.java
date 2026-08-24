@@ -72,6 +72,11 @@ public final class PaperWorldAccess implements WorldAccess {
         return world.isChunkLoaded(Math.floorDiv(position.x(), 16), Math.floorDiv(position.z(), 16));
     }
 
+    @Override
+    public boolean isReplaceable(BlockPosition position) {
+        return blockAt(position).getBlockData().isReplaceable();
+    }
+
     private Block blockAt(BlockPosition position) {
         return world(position).getBlockAt(position.x(), position.y(), position.z());
     }

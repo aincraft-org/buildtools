@@ -16,6 +16,7 @@ import java.util.Set;
 public final class InMemoryWorldAccess implements WorldAccess {
     private final Map<BlockPosition, BlockState> blocks = new HashMap<>();
     private final Set<BlockPosition> cancelled = new HashSet<>();
+    private final Set<String> replaceableNames = new HashSet<>();
 
     /**
      * @param position coordinate
@@ -56,6 +57,17 @@ public final class InMemoryWorldAccess implements WorldAccess {
     public InMemoryWorldAccess cancel(BlockPosition position) {
         cancelled.add(position);
         return this;
+    }
+
+    public InMemoryWorldAccess withReplaceable(String namespacedKey) {
+        replaceableNames.add(namespacedKey);
+        return this;
+    }
+
+    @Override
+    public boolean isReplaceable(BlockPosition position) {
+        BlockState state = getBlock(position);
+        return state.isAir() || replaceableNames.contains(state.namespacedKey());
     }
 
     @Override

@@ -30,4 +30,10 @@ public interface WorldAccess {
      * @return {@code true} if the chunk is loaded
      */
     boolean isLoaded(BlockPosition position);
+
+    /**
+     * @param position block coordinate
+     * @return {@code true} if the block can be replaced without being broken first
+     */
+    boolean isReplaceable(BlockPosition position);
 }
