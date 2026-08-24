@@ -12,6 +12,7 @@ import dev.mintychochip.buildtools.common.tool.CopyTool;
 import dev.mintychochip.buildtools.common.tool.FillTool;
 import dev.mintychochip.buildtools.common.tool.PasteTool;
 import dev.mintychochip.buildtools.common.tool.ReplaceTool;
+import dev.mintychochip.buildtools.common.tool.SurvivalFillTool;
 import dev.mintychochip.buildtools.common.tool.ToolExecutor;
 import dev.mintychochip.buildtools.common.tool.ToolRegistry;
 import dev.mintychochip.buildtools.paper.adapter.PaperPermissionService;
@@ -48,9 +49,10 @@ public final class BuildToolsPlugin extends JavaPlugin implements Listener {
         this.toolRegistry = new ToolRegistry();
         this.toolRegistry.register(new ReplaceTool());
         this.toolRegistry.register(new FillTool());
+        this.toolRegistry.register(new SurvivalFillTool());
         this.toolRegistry.register(new CopyTool(sessions));
         this.toolRegistry.register(new PasteTool());
-        this.history = new OperationHistory(OperationHistory.DEFAULT_SIZE);
+        this.history = new OperationHistory(20);
         this.toolExecutor = new ToolExecutor(
                 toolRegistry, history, new OperationGuard(limits), new PaperPermissionService(getServer()));
         this.previewRenderer = new PaperPreviewRenderer(this);
@@ -69,7 +71,10 @@ public final class BuildToolsPlugin extends JavaPlugin implements Listener {
                 survivalTransaction);
 
         PluginCommand command = Objects.requireNonNull(getCommand("bt"), "plugin.yml must declare /bt");
-        command.setExecutor(new BuildToolsCommand(commands, limits));
+        command.setExecutor(new BuildToolsCommand(commands, limits, this));
+        GadgetListener gadgetListener = new GadgetListener(
+                this, commands, sessions, limits, worldAccess, survivalTransaction);
+        getServer().getPluginManager().registerEvents(gadgetListener, this);
         getServer().getPluginManager().registerEvents(this, this);
         getLogger().info("BuildTools loaded.");
     }
