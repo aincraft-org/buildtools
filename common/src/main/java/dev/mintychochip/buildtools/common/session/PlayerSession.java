@@ -3,6 +3,7 @@ package dev.mintychochip.buildtools.common.session;
 import dev.mintychochip.buildtools.api.clipboard.Clipboard;
 import dev.mintychochip.buildtools.api.selection.CuboidSelection;
 import dev.mintychochip.buildtools.api.world.BlockPosition;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -12,6 +13,7 @@ public final class PlayerSession {
     private BlockPosition pos1;
     private BlockPosition pos2;
     private Clipboard clipboard;
+    private ToolMode mode = ToolMode.FILL;
 
     /** @return first corner if set */
     public Optional<BlockPosition> pos1() {
@@ -51,10 +53,21 @@ public final class PlayerSession {
         this.clipboard = clipboard;
     }
 
-    /** Clears corners and clipboard. */
+    /** @return current tool mode */
+    public ToolMode mode() {
+        return mode;
+    }
+
+    /** @param mode new tool mode */
+    public void setMode(ToolMode mode) {
+        this.mode = Objects.requireNonNull(mode, "mode");
+    }
+
+    /** Clears corners, clipboard, and mode. */
     public void clear() {
         pos1 = null;
         pos2 = null;
         clipboard = null;
+        mode = ToolMode.FILL;
     }
 }
