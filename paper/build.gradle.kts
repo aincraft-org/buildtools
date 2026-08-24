@@ -1,3 +1,7 @@
+plugins {
+    id("xyz.jpenilla.run-paper") version "3.1.0"
+}
+
 repositories {
     maven {
         name = "papermc"
@@ -27,4 +31,9 @@ tasks.jar {
     from(configurations.runtimeClasspath.map { files ->
         files.filter { it.exists() }.map { if (it.isDirectory) it else zipTree(it) }
     })
+}
+
+tasks.runServer {
+    minecraftVersion("26.2")
+    serverJar(file("run/cache/paper-26.2-112.jar"))
 }

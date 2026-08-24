@@ -9,4 +9,5 @@ out/
 .settings/
 .vscode/
 *.class
+paper/run/
 .worktrees/
