@@ -8,7 +8,7 @@ description: Survival-friendly building assistant
 commands:
   bt:
     description: BuildTools command root
-    usage: /bt <pos1|pos2|replace|fill|copy|paste|undo|redo|blueprint>
+    usage: /bt <pos1|pos2|replace|fill|survival_fill|copy|paste|undo|redo|blueprint|wand>
     permission: buildtools.command
 permissions:
   buildtools.command:

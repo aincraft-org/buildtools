@@ -12,6 +12,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.block.Block;
 import org.bukkit.command.Command;
+import dev.mintychochip.buildtools.paper.adapter.GadgetItem;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -42,6 +43,11 @@ public final class BuildToolsCommand implements CommandExecutor {
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
             sender.sendMessage(Component.text("BuildTools commands are player-only.", NamedTextColor.RED));
+            return true;
+        }
+        if (args.length > 0 && args[0].equalsIgnoreCase("wand")) {
+            player.getInventory().addItem(GadgetItem.create(plugin));
+            sender.sendMessage(Component.text("Given BuildTools Gadget.", NamedTextColor.GREEN));
             return true;
         }
         CommandResult result = commands.execute(toContext(player, args));

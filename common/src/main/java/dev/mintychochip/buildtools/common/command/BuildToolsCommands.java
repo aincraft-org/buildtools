@@ -73,7 +73,7 @@ public final class BuildToolsCommands {
     public CommandResult execute(CommandContext context) {
         Objects.requireNonNull(context, "context");
         if (context.arguments().isEmpty()) {
-            return CommandResult.fail("Usage: /bt <pos1|pos2|replace|fill|copy|paste|undo|redo|blueprint>");
+            return CommandResult.fail("Usage: /bt <pos1|pos2|replace|fill|survival_fill|copy|paste|undo|redo|blueprint|wand>");
         }
         String command = context.argument(0).toLowerCase();
         return switch (command) {
