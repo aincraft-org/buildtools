@@ -24,9 +24,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
 /**
- * Platform-neutral {@code /bt} dispatcher. Paper's {@code BuildToolsCommand} builds a
+ * Platform-neutral {@code /bt} dispatcher. Paper's {@code BuildToolsBrigadierCommand} builds a
  * {@link CommandContext} and calls {@link #execute(CommandContext)}.
  */
 public final class BuildToolsCommands {

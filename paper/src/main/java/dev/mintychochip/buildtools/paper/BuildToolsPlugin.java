@@ -1,5 +1,6 @@
 package dev.mintychochip.buildtools.paper;
 
+import com.mojang.brigadier.tree.LiteralCommandNode;
 import dev.mintychochip.buildtools.api.ActorId;
 import dev.mintychochip.buildtools.api.limits.OperationLimits;
 import dev.mintychochip.buildtools.common.blueprint.BlueprintManager;
@@ -20,9 +21,11 @@ import dev.mintychochip.buildtools.paper.adapter.PaperPreviewRenderer;
 import dev.mintychochip.buildtools.paper.adapter.PaperSurvivalTransaction;
 import dev.mintychochip.buildtools.paper.adapter.PaperTaskScheduler;
 import dev.mintychochip.buildtools.paper.adapter.PaperWorldAccess;
-import dev.mintychochip.buildtools.paper.command.BuildToolsCommand;
-import java.util.Objects;
-import org.bukkit.command.PluginCommand;
+import dev.mintychochip.buildtools.paper.command.BuildToolsBrigadierCommand;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
+import io.papermc.paper.plugin.lifecycle.event.LifecycleEventManager;
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
+import java.util.List;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -30,7 +33,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 /**
  * Paper entry point. Wires {@code api}/{@code common} ports, registers replace/fill/copy/paste,
- * and binds {@code /bt}.
+ * and binds {@code /bt} via Brigadier.
  */
 public final class BuildToolsPlugin extends JavaPlugin implements Listener {
     private ToolRegistry toolRegistry;
@@ -70,8 +73,12 @@ public final class BuildToolsPlugin extends JavaPlugin implements Listener {
                 worldAccess,
                 survivalTransaction);
 
-        PluginCommand command = Objects.requireNonNull(getCommand("bt"), "plugin.yml must declare /bt");
-        command.setExecutor(new BuildToolsCommand(commands, limits, this));
+        LifecycleEventManager<org.bukkit.plugin.Plugin> manager = getLifecycleManager();
+        manager.registerEventHandler(LifecycleEvents.COMMANDS, event -> {
+            LiteralCommandNode<CommandSourceStack> node = new BuildToolsBrigadierCommand(commands, limits, this).tree();
+            event.registrar().register(node, "BuildTools command root", List.of());
+        });
+
         GadgetListener gadgetListener = new GadgetListener(
                 this, commands, sessions, limits, worldAccess, survivalTransaction);
         getServer().getPluginManager().registerEvents(gadgetListener, this);
