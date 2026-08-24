@@ -80,7 +80,8 @@ public final class BuildToolsCommands {
             case "pos1" -> setCorner(context, 1);
             case "pos2" -> setCorner(context, 2);
             case "replace" -> replace(context);
-            case "fill" -> fill(context);
+            case "fill" -> fill(context, false);
+            case "survival_fill" -> fill(context, true);
             case "copy" -> copy(context);
             case "paste" -> paste(context);
             case "undo" -> undo(context);
@@ -129,12 +130,11 @@ public final class BuildToolsCommands {
                 "from", context.argument(1),
                 "to", context.argument(2)));
     }
-
-    private CommandResult fill(CommandContext context) {
+    private CommandResult fill(CommandContext context, boolean soft) {
         if (context.arguments().size() < 2) {
             return CommandResult.fail("Usage: /bt fill <block>");
         }
-        return runTool(context, "fill", Map.of("block", context.argument(1)));
+        return runTool(context, soft ? "survival_fill" : "fill", Map.of("block", context.argument(1)));
     }
 
     private CommandResult copy(CommandContext context) {
