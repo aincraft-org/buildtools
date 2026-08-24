@@ -49,17 +49,14 @@ Not mapped to the gadget in this version. `/bt undo` and `/bt redo` remain, and 
   - Detects the gadget by a `NamespacedKey` stored on its `PersistentDataContainer`.
   - Cancels the default interaction to avoid placing/breaking blocks.
   - Dispatches to `BuildToolsCommands` with synthesized `CommandContext` arguments.
-- **Gadget item**: created by `GadgetItem.create()` in the `paper` adapter.
-  - Unbreakable, no crafting recipe, bound to the `buildtools` namespace.
-- **Session additions** (`common/session/PlayerSession.java`):
-  - `ToolMode mode` enum: `FILL`, `REPLACE`, `COPY`, `PASTE`.
-  - `BlockPosition fromSample` for Replace mode (optional).
-  - `clear()` also resets `mode` and `fromSample`.
-- **New tool**: `common/tool/SurvivalFillTool.java`
-  - Like `FillTool`, but `plan()` skips positions where `world.getBlock(position)` is not air/replaceable.
+- `WorldAccess` interface gets `boolean isReplaceable(BlockPosition position)`.
+  - `PaperWorldAccess` delegates to `block.getBlockData().isReplaceable()`.
+  - `InMemoryWorldAccess` treats air and any block named in an explicit set as replaceable for tests.
+- **New tool**: `common/src/main/java/dev/mintychochip/buildtools/common/tool/SurvivalFillTool.java`
+  - Like `FillTool`, but `plan()` skips positions where `!world.isReplaceable(position)`.
   - Registered in `BuildToolsPlugin`.
 - **History limit**: change `BuildToolsPlugin` to `new OperationHistory(20)`.
-- **`BuildToolsCommands`**: add `wand` case that returns a result. The Paper `BuildToolsCommand` handles the actual item delivery.
+- **`BuildToolsCommand` (Paper)**: add `/bt wand` subcommand. It creates and gives the player a `GadgetItem`; other subcommands still dispatch to `BuildToolsCommands`.
 - **`plugin.yml`**: update `/bt` usage to mention `wand`.
 
 ## Survival economy
@@ -70,6 +67,11 @@ Not mapped to the gadget in this version. `/bt undo` and `/bt redo` remain, and 
 ## Visual feedback
 - Action bar shows `Mode: <mode>` and one-line hint when the player holds the gadget.
 - Existing `PaperPreviewRenderer` shows the selection and affected blocks.
+
+## Session changes
+- `common/src/main/java/dev/mintychochip/buildtools/common/session/PlayerSession.java`:
+  - `ToolMode mode` enum: `FILL`, `REPLACE`, `COPY`, `PASTE`.
+  - `clear()` also resets `mode`.
 
 ## Fallback commands
 - `/bt wand` — give gadget.
