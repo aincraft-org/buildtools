@@ -432,9 +432,9 @@ package dev.mintychochip.buildtools.paper;
 import dev.mintychochip.buildtools.api.ActorId;
 import dev.mintychochip.buildtools.api.command.CommandContext;
 import dev.mintychochip.buildtools.api.command.CommandResult;
-import dev.mintychochip.buildtools.api.limits.OperationLimits;
-import dev.mintychochip.buildtools.api.service.SurvivalTransaction;
-import dev.mintychochip.buildtools.api.service.WorldAccess;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
 import dev.mintychochip.buildtools.api.world.BlockPosition;
 import dev.mintychochip.buildtools.common.command.BuildToolsCommands;
 import dev.mintychochip.buildtools.common.session.PlayerSessionStore;
@@ -479,6 +479,9 @@ public final class GadgetListener implements Listener {
 
     @EventHandler
     public void onInteract(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND) {
+            return;
+        }
         Player player = event.getPlayer();
         ItemStack main = player.getInventory().getItemInMainHand();
         if (!GadgetItem.isGadget(plugin, main)) {
