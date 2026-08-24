@@ -25,17 +25,19 @@ import java.util.stream.Stream;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Location;
+import org.bukkit.Registry;
 import org.bukkit.World;
 import org.bukkit.block.Block;
-import org.bukkit.block.data.BlockData;
+import org.bukkit.block.BlockType;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.RayTraceResult;
 
 /**
- * Brigadier command tree for {@code /bt}. Parses typed arguments, delegates to
- * {@link BuildToolsCommands}, and provides tab completion for subcommands,
- * block-state arguments, blueprint actions, and preview modes.
+ * Brigadier command tree for {@code /bt}. Parses typed arguments where safe,
+ * preserves the common command layer's accepted string syntax for block states,
+ * and provides tab completion for subcommands, block names, blueprint actions,
+ * and preview modes.
  */
 public final class BuildToolsBrigadierCommand {
 
@@ -79,18 +81,21 @@ public final class BuildToolsBrigadierCommand {
 
     private LiteralArgumentBuilder<CommandSourceStack> replace() {
         return Commands.literal("replace")
-                .then(Commands.argument("from", ArgumentTypes.blockState())
-                        .then(Commands.argument("to", ArgumentTypes.blockState())
+                .then(Commands.argument("from", StringArgumentType.word())
+                        .suggests(blockStateSuggestions())
+                        .then(Commands.argument("to", StringArgumentType.word())
+                                .suggests(blockStateSuggestions())
                                 .executes(ctx -> execute(ctx, List.of(
                                         "replace",
-                                        stringOf(ctx, "from"),
-                                        stringOf(ctx, "to"))))));
+                                        StringArgumentType.getString(ctx, "from"),
+                                        StringArgumentType.getString(ctx, "to"))))));
     }
 
     private LiteralArgumentBuilder<CommandSourceStack> fill(String name) {
         return Commands.literal(name)
-                .then(Commands.argument("block", ArgumentTypes.blockState())
-                        .executes(ctx -> execute(ctx, List.of(name, stringOf(ctx, "block")))));
+                .then(Commands.argument("block", StringArgumentType.word())
+                        .suggests(blockStateSuggestions())
+                        .executes(ctx -> execute(ctx, List.of(name, StringArgumentType.getString(ctx, "block")))));
     }
 
     private LiteralArgumentBuilder<CommandSourceStack> blueprint(String name) {
@@ -189,12 +194,6 @@ public final class BuildToolsBrigadierCommand {
         return world != null ? world.getName() : "";
     }
 
-    private static String stringOf(CommandContext<CommandSourceStack> ctx, String name) {
-        org.bukkit.block.BlockState state = ctx.getArgument(name, org.bukkit.block.BlockState.class);
-        BlockData data = state.getBlockData();
-        return data.getAsString();
-    }
-
     private static void send(Player player, CommandResult result) {
         player.sendMessage(Component.text(result.message(), result.success() ? NamedTextColor.GREEN : NamedTextColor.RED));
     }
@@ -211,6 +210,19 @@ public final class BuildToolsBrigadierCommand {
             for (PreviewMode mode : PreviewMode.values()) {
                 builder.suggest(mode.name().toLowerCase(Locale.ROOT));
             }
+            return builder.buildFuture();
+        };
+    }
+
+    private static SuggestionProvider<CommandSourceStack> blockStateSuggestions() {
+        return (ctx, builder) -> {
+            String remaining = builder.getRemainingLowerCase();
+            Registry.BLOCK.stream()
+                    .map(BlockType::getKey)
+                    .map(key -> key.toString())
+                    .filter(name -> name.toLowerCase(Locale.ROOT).startsWith(remaining) || name.contains(remaining))
+                    .limit(64)
+                    .forEach(builder::suggest);
             return builder.buildFuture();
         };
     }
