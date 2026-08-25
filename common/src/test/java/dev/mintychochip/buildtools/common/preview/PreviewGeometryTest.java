@@ -5,39 +5,46 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.mintychochip.buildtools.api.selection.CuboidSelection;
 import dev.mintychochip.buildtools.api.world.BlockPosition;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
-/** Tests that outlines stay on the cuboid surface and under the display cap. */
+/**
+ * Preview geometry contract: corners always present, display cap respected, and the
+ * player-facing TOP face is sampled across its interior — an edges-only ring is what made
+ * large selections look hollow from above.
+ */
 class PreviewGeometryTest {
-    @Test
-    void outlineMatchesCuboidEdgesAndIsBounded() {
-        CuboidSelection selection = new CuboidSelection(
-                new BlockPosition("world", 0, 64, 0),
-                new BlockPosition("world", 63, 80, 63));
-        List<BlockPosition> outline = PreviewGeometry.outline(selection, 256);
-        assertTrue(outline.size() <= 256);
-        assertTrue(outline.size() < selection.volume());
-        assertTrue(outline.contains(selection.min()));
-        assertTrue(outline.contains(selection.max()));
-        for (BlockPosition point : outline) {
-            boolean onFace = point.x() == 0
-                    || point.x() == 63
-                    || point.y() == 64
-                    || point.y() == 80
-                    || point.z() == 0
-                    || point.z() == 63;
-            assertTrue(onFace, "outline point left the cuboid surface: " + point);
-        }
+
+    private static BlockPosition pos(String world, int x, int y, int z) {
+        return new BlockPosition(world, x, y, z);
     }
 
     @Test
-    void smallSelectionOutlineIncludesCorners() {
+    void topFaceInteriorIsSampledForSmallBoxes() {
         CuboidSelection selection = new CuboidSelection(
-                new BlockPosition("world", 5, 10, 5),
-                new BlockPosition("world", 7, 12, 6));
-        List<BlockPosition> outline = PreviewGeometry.outline(selection);
-        assertEquals(selection.min(), outline.getFirst());
-        assertTrue(outline.contains(new BlockPosition("world", 7, 10, 5)));
+                pos("world", 0, 64, 0), pos("world", 9, 69, 9));
+        var points = new HashSet<>(PreviewGeometry.outline(selection));
+
+        // Center of the 10x10 top face must be rendered, not just the border ring.
+        assertTrue(points.contains(pos("world", 4, 69, 4)),
+                "top-face interior missing: " + points.size() + " points");
+        assertTrue(points.contains(pos("world", 5, 69, 5)));
+    }
+
+    @Test
+    void allCornersPresentAndCapRespectedForMaxBox() {
+        CuboidSelection selection = new CuboidSelection(
+                pos("world", 0, 64, 0), pos("world", 63, 71, 63));
+        var points = new HashSet<>(PreviewGeometry.outline(selection));
+        Set<BlockPosition> corners = Set.of(
+                pos("world", 0, 64, 0), pos("world", 63, 64, 0),
+                pos("world", 0, 64, 63), pos("world", 63, 64, 63),
+                pos("world", 0, 71, 0), pos("world", 63, 71, 0),
+                pos("world", 0, 71, 63), pos("world", 63, 71, 63));
+        assertTrue(points.containsAll(corners), "corners missing");
+        assertEquals(points.size(), PreviewGeometry.outline(selection).size(), "duplicates");
+        assertTrue(points.size() <= PreviewGeometry.DEFAULT_MAX_DISPLAYS,
+                "cap exceeded: " + points.size());
     }
 }

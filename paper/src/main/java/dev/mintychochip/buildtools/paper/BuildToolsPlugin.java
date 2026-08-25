@@ -43,6 +43,7 @@ public final class BuildToolsPlugin extends JavaPlugin implements Listener {
     private PaperWorldAccess worldAccess;
     private PaperSurvivalTransaction survivalTransaction;
     private PaperTaskScheduler taskScheduler;
+    private HoverPreviewDriver hoverPreviews;
     private PlayerSessionStore sessions;
 
     @Override
@@ -62,6 +63,8 @@ public final class BuildToolsPlugin extends JavaPlugin implements Listener {
         this.worldAccess = new PaperWorldAccess(getServer());
         this.survivalTransaction = new PaperSurvivalTransaction(getServer());
         this.taskScheduler = new PaperTaskScheduler(this);
+        this.hoverPreviews = new HoverPreviewDriver(this, sessions, limits, previewRenderer);
+        this.hoverPreviews.start();
         BlueprintManager blueprints =
                 new BlueprintManager(new FileBlueprintStore(getDataFolder().toPath().resolve("blueprints")), sessions);
         BuildToolsCommands commands = new BuildToolsCommands(
@@ -95,7 +98,7 @@ public final class BuildToolsPlugin extends JavaPlugin implements Listener {
         this.worldAccess = null;
         this.survivalTransaction = null;
         this.taskScheduler = null;
-        this.sessions = null;
+        this.hoverPreviews = null;
         getLogger().info("BuildTools disabled.");
     }
 
@@ -112,6 +115,9 @@ public final class BuildToolsPlugin extends JavaPlugin implements Listener {
         }
         if (sessions != null) {
             sessions.remove(actor);
+        }
+        if (hoverPreviews != null) {
+            hoverPreviews.forget(event.getPlayer().getUniqueId());
         }
     }
 }

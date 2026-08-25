@@ -28,7 +28,9 @@ public final class GadgetItem {
             meta.lore(List.of(
                     Component.text("Shift-left: cycle mode", NamedTextColor.GRAY),
                     Component.text("Shift-right: set pos1", NamedTextColor.GRAY),
-                    Component.text("Right-click: set pos2 / apply", NamedTextColor.GRAY)));
+                    Component.text("Right-click: set pos2 / apply", NamedTextColor.GRAY),
+                    Component.text("Swap-hands: undo · Sneak+swap: redo", NamedTextColor.GRAY),
+                    Component.text("Aim: live box preview", NamedTextColor.GRAY)));
             meta.setUnbreakable(true);
             meta.getPersistentDataContainer().set(
                     new NamespacedKey(plugin, GADGET_KEY),

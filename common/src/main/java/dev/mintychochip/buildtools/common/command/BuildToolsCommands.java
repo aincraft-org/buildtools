@@ -38,11 +38,6 @@ public final class BuildToolsCommands {
     private final SurvivalTransaction survival;
 
     /**
-     * @param sessions player sessions
-     * @param guard limits
-     * @param executor tools
-     * @param blueprints named blueprints
-     * @param previews outline renderer
      * @param world world
      * @param survival inventory
      */
@@ -264,7 +259,8 @@ public final class BuildToolsCommands {
                 sessions.clipboard(context.actorId()).orElse(null));
         String ok = switch (toolName) {
             case "copy" -> "Copied " + selection.get().volume() + " blocks";
-            case "fill" -> "Filled selection";
+            case "fill" -> "Filled";
+            case "survival_fill" -> "Soft-filled";
             case "replace" -> "Replaced matching blocks";
             default -> "Ran " + toolName;
         };
@@ -282,8 +278,12 @@ public final class BuildToolsCommands {
         if (record.isEmpty()) {
             return CommandResult.fail("Execute refused");
         }
-        String message = successMessage + " (" + preview.affectedCount() + " affected)";
-        return CommandResult.executed(message, preview, record.get());
+        String detail = switch (request.toolName()) {
+            case "fill", "survival_fill", "replace" -> " (" + preview.affectedCount()
+                    + " of " + request.selection().volume() + " cells)";
+            default -> " (" + preview.affectedCount() + " affected)";
+        };
+        return CommandResult.executed(successMessage + detail, preview, record.get());
     }
 
     private static BlockPosition resolveCoordinate(CommandContext context, int startIndex) {

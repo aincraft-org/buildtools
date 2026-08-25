@@ -21,6 +21,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -83,6 +84,25 @@ public final class GadgetListener implements Listener {
         if (consumed) {
             event.setCancelled(true);
         }
+    }
+
+    /**
+     * Maps the swap-hands key while holding the gadget: F undoes the last operation,
+     * sneak+F redoes. The swap itself is always cancelled so the item stays in hand.
+     *
+     * @param event swap
+     */
+    @EventHandler
+    public void onSwapHandItems(PlayerSwapHandItemsEvent event) {
+        if (!GadgetItem.isGadget(plugin, event.getMainHandItem())) {
+            return;
+        }
+        Player player = event.getPlayer();
+        if (!player.hasPermission("buildtools.command")) {
+            return;
+        }
+        event.setCancelled(true);
+        dispatch(player, targetOf(player), List.of(player.isSneaking() ? "redo" : "undo"));
     }
 
     private boolean cycleMode(Player player) {

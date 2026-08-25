@@ -7,6 +7,7 @@ import dev.mintychochip.buildtools.api.world.BlockPosition;
 import dev.mintychochip.buildtools.common.blueprint.BlueprintManager;
 import dev.mintychochip.buildtools.common.blueprint.MemoryBlueprintStore;
 import dev.mintychochip.buildtools.common.command.BuildToolsCommands;
+import dev.mintychochip.buildtools.api.service.TaskScheduler;
 import dev.mintychochip.buildtools.common.operation.OperationGuard;
 import dev.mintychochip.buildtools.common.operation.OperationHistory;
 import dev.mintychochip.buildtools.common.session.PlayerSessionStore;
@@ -60,7 +61,8 @@ public final class TestHarness {
         this.registry.register(new PasteTool());
         this.executor = new ToolExecutor(registry, history, guard, permissions);
         this.blueprints = new BlueprintManager(store, sessions);
-        this.commands = new BuildToolsCommands(sessions, guard, executor, blueprints, previews, world, survival);
+        this.commands = new BuildToolsCommands(sessions, guard, executor, blueprints, previews,
+                world, survival);
     }
 
     /**

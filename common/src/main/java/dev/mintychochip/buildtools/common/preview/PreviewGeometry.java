@@ -28,11 +28,13 @@ public final class PreviewGeometry {
     }
 
     /**
-     * Bounded aggregated cuboid outline. Samples the 12 edges; never one point per volume block.
+     * Bounded cuboid preview. Samples the player-facing TOP face as a lattice first so
+     * selections are not hollow from above, then distributes the remaining display budget
+     * across the 12 edges proportionally to their length. Never one point per volume block.
      *
      * @param selection cuboid
      * @param maxDisplays hard cap on returned points
-     * @return unique edge samples
+     * @return unique samples, size at most {@code maxDisplays}
      */
     public static List<BlockPosition> outline(CuboidSelection selection, int maxDisplays) {
         Objects.requireNonNull(selection, "selection");
@@ -42,6 +44,19 @@ public final class PreviewGeometry {
         BlockPosition min = selection.min();
         BlockPosition max = selection.max();
         Set<BlockPosition> points = new LinkedHashSet<>();
+
+        int topBudget = Math.max(4, maxDisplays * 3 / 5);
+        int stride = 1;
+        while (samples(min.x(), max.x(), stride).size()
+                * samples(min.z(), max.z(), stride).size() > topBudget) {
+            stride++;
+        }
+        for (int x : samples(min.x(), max.x(), stride)) {
+            for (int z : samples(min.z(), max.z(), stride)) {
+                points.add(new BlockPosition(selection.worldId(), x, max.y(), z));
+            }
+        }
+
         int[][] edges = {
             {min.x(), min.y(), min.z(), max.x(), min.y(), min.z()},
             {min.x(), min.y(), max.z(), max.x(), min.y(), max.z()},
@@ -56,22 +71,41 @@ public final class PreviewGeometry {
             {min.x(), max.y(), min.z(), min.x(), max.y(), max.z()},
             {max.x(), max.y(), min.z(), max.x(), max.y(), max.z()}
         };
-        int perEdge = Math.max(2, maxDisplays / 12);
-        for (int[] edge : edges) {
-            sampleEdge(points, selection.worldId(), edge[0], edge[1], edge[2], edge[3], edge[4], edge[5], perEdge);
+        int[] lengths = new int[edges.length];
+        long totalLength = 0;
+        for (int i = 0; i < edges.length; i++) {
+            int[] edge = edges[i];
+            lengths[i] = Math.max(Math.abs(edge[3] - edge[0]),
+                    Math.max(Math.abs(edge[4] - edge[1]), Math.abs(edge[5] - edge[2])));
+            totalLength += Math.max(1, lengths[i]);
+        }
+        int remaining = Math.max(0, maxDisplays - points.size());
+        for (int i = 0; i < edges.length && remaining > 0; i++) {
+            int[] edge = edges[i];
+            int length = lengths[i];
+            int steps = (int) Math.round((double) length * remaining / totalLength);
+            steps = Math.max(1, Math.min(length, steps));
+            sampleEdge(points, selection.worldId(),
+                    edge[0], edge[1], edge[2], edge[3], edge[4], edge[5], steps + 1);
+            remaining = maxDisplays - points.size();
         }
         if (points.size() > maxDisplays) {
-            List<BlockPosition> trimmed = new ArrayList<>(maxDisplays);
-            int i = 0;
-            for (BlockPosition point : points) {
-                if (i++ >= maxDisplays) {
-                    break;
-                }
-                trimmed.add(point);
-            }
-            return List.copyOf(trimmed);
+            return List.copyOf(new ArrayList<>(points).subList(0, maxDisplays));
         }
         return List.copyOf(points);
+    }
+
+    /**
+     * Inclusive axis samples from {@code from} to {@code to} at most every {@code stride},
+     * always ending on {@code to}.
+     */
+    private static List<Integer> samples(int from, int to, int stride) {
+        List<Integer> values = new ArrayList<>();
+        for (int value = from; value < to; value += stride) {
+            values.add(value);
+        }
+        values.add(to);
+        return values;
     }
 
     private static void sampleEdge(
