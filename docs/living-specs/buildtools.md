@@ -49,7 +49,7 @@ Success looks like: a server owner can install the plugin, players can quickly s
 - Keep tools stateless; per-player session holds selection, clipboard, and undo history.
 - Distinguish `interaction_distance` (server raycast/start-point reach) from `selection_extent` and `max_operation_blocks`; selection extent and operation size are not limited to interaction distance.
 - Render bounded previews with aggregated outlines or capped display entities; never create one `BlockDisplay` per affected block for large operations.
-- Commands are the primary UI; hotkey/wand item support may follow.
+- Commands remain the fallback and advanced surface; the wand-given BuildTools Gadget item is the primary interaction for common tools.
 - Prefer async validation and chunked execution for large operations.
 - Permission node convention: `buildtools.tool.<name>`, `buildtools.limit.<size>`, `buildtools.bypass.creative`.
 - Storage: NBT/Sponge Schematic for blueprints, SQLite or flat files for metadata.
@@ -62,9 +62,10 @@ Success looks like: a server owner can install the plugin, players can quickly s
 - [x] `blueprints` — copy-to-clipboard and save/load named blueprints
 - [x] this root catalog and project bootstrap
 - [x] Gradle multi-project scaffold: api, common, paper
+- [x] gadget — `/bt wand` BuildTools Gadget item: shift-click pos1/paste, right-click pos2+apply, mode cycling, offhand material
 
 ### Current notes
-V1 command surface is `/bt` (pos1/pos2, replace, fill, copy, paste, undo/redo, blueprint save/load/list/delete). Defaults: `interactionDistance=6`, `selectionExtent=64`, `maxOperationBlocks=32768`. Live Paper playthrough is not required to mark Current done.
+V1 command surface is `/bt` (pos1/pos2, replace, fill, copy, paste, undo/redo, blueprint save/load/list/delete). Defaults: `interactionDistance=6`, `selectionExtent=64`, `maxOperationBlocks=32768`. Live Paper playthrough is not required to mark Current done. The gadget (2026-08-24 design) adds a shift-click item UI over the same dispatcher; destructive `fill`/`replace`/`paste` are op-only while `survival_fill`, `copy`, and the gadget are default-allowed.
 
 ## Next
 
@@ -99,6 +100,7 @@ V1 command surface is `/bt` (pos1/pos2, replace, fill, copy, paste, undo/redo, b
 | 2026-08-19 | Command-only selection in V1 | Wand item is deferred; `/bt pos1`/`pos2` is enough |
 | 2026-08-19 | Defaults 6 / 64 / 32768 | Locked so limits are testable without a config file |
 | 2026-08-19 | Flat-file Sponge Schematic blueprints | Player-scoped `.schem` + JSON metadata under the plugin data folder |
+| 2026-08-24 | Gadget item as primary UI; `/bt` stays as fallback | Supersedes command-only V1 decision per `docs/superpowers/specs/2026-08-24-buildtools-gadget-design.md` |
 
 ## Open questions
 
