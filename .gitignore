@@ -12,3 +12,5 @@ out/
 paper/run/
 runpaper/run/
 .worktrees/
+.superpowers/sdd/
+

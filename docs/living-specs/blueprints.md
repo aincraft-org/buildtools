@@ -34,7 +34,7 @@ Let players save their selections and load them again anywhere, so builds can be
 - Metadata file (JSON) per blueprint for owner, name, timestamp, dimensions.
 - `BlueprintManager` handles save, load, list, delete.
 - Paste tool delegates to `BlueprintManager` and then runs through survival cost.
-- Store blueprints in `plugins/BuildTools/blueprints/<player-uuid>/`.
+- Store blueprints in `plugins/Masonry/blueprints/<player-uuid>/`.
 
 ## Current
 

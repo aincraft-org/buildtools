@@ -1,5 +1,7 @@
 # BuildTools Gadget Design
 
+> Historical record — active project is Masonry.
+
 ## Goal
 Replace the chat-command-only interaction for common BuildTools actions with a single, holdable "BuildTools Gadget" that uses shift-left/right clicks. The existing `/bt` command remains as a fallback and for advanced/edge cases.
 

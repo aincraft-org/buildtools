@@ -26,7 +26,7 @@ Make every building operation feel like real survival work: players must have th
 
 - Player must have the required blocks in inventory before an operation places them.
 - Removed blocks must be refunded to the player unless the server config says otherwise.
-- No operation can proceed without the `buildtools.tool.<name>` permission.
+- No operation can proceed without the `masonry.tool.<name>` permission.
 - Refund must not exceed original cost (no duplication).
 
 ## Implementation guidance
@@ -34,8 +34,8 @@ Make every building operation feel like real survival work: players must have th
 - Use Paper inventory API to count and remove items before execution.
 - Compute cost from the target block count and type, accounting for block state changes (e.g., slabs, stairs).
 - Record block diffs during execution; use them to refund or re-charge on undo.
-- Permission nodes follow `buildtools.tool.<name>` and `buildtools.limit.<max>` patterns.
-- Provide a `buildtools.bypass.survival` or creative-mode bypass.
+- Permission nodes follow `masonry.tool.<name>` and `masonry.limit.<max>` patterns.
+- Provide a `masonry.bypass.survival` or creative-mode bypass.
 - In V1, fire standard block place/break events and respect cancellation by other protection plugins; explicit `ClaimProvider` integrations come in Next.
 - Build claim/anti-grief integration behind a `ClaimProvider` abstraction for later use.
 - Validate `interaction_distance`, `selection_extent`, and `max_operation_blocks` independently; none should silently turn into unlimited reach.
@@ -73,4 +73,4 @@ Make every building operation feel like real survival work: players must have th
 
 - [x] Refund when inventory is full — drop items or block undo? — drop leftovers at the player
 - [ ] Which claim plugins to support first?
-- [x] Should creative-mode players still pay from inventory or bypass entirely? — bypass via creative or `buildtools.bypass.creative` / `buildtools.bypass.survival`
+- [x] Should creative-mode players still pay from inventory or bypass entirely? — bypass via creative or `masonry.bypass.creative` / `masonry.bypass.survival`

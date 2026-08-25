@@ -1,4 +1,4 @@
-rootProject.name = "buildtools"
+rootProject.name = "masonry"
 
 include("api")
 include("common")

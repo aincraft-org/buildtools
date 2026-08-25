@@ -1,5 +1,7 @@
 # BuildTools Gradle Module Separation
 
+> Historical record — active project is Masonry.
+
 ## Status
 
 Drafted as the initial architecture specification for the `dev.mintychochip` BuildTools project.

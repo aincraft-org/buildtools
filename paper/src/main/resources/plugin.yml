@@ -1,37 +1,37 @@
-name: BuildTools
+name: Masonry
 version: ${version}
-main: dev.mintychochip.buildtools.paper.BuildToolsPlugin
+main: dev.mintychochip.masonry.paper.MasonryPlugin
 api-version: "26.2"
 authors:
   - mintychochip
 description: Survival-friendly building assistant
 commands:
-  bt:
-    description: BuildTools command root
-    usage: /bt <pos1|pos2|replace|fill|survival_fill|copy|paste|undo|redo|blueprint|wand|previewmode>
-    permission: buildtools.command
+  masonry:
+    description: Masonry command root
+    usage: /masonry <pos1|pos2|replace|fill|survival_fill|copy|paste|undo|redo|blueprint|wand|previewmode>
+    permission: masonry.command
 permissions:
-  buildtools.command:
-    description: Use the /bt command root
+  masonry.command:
+    description: Use the /masonry command root
     default: true
-  buildtools.tool.survival_fill:
-    description: Use /bt survival_fill and the gadget's safe fill
+  masonry.tool.survival_fill:
+    description: Use /masonry survival_fill and the gadget's safe fill
     default: true
-  buildtools.tool.copy:
-    description: Use /bt copy
+  masonry.tool.copy:
+    description: Use /masonry copy
     default: true
-  buildtools.tool.fill:
-    description: Use /bt fill (overwrites any block)
+  masonry.tool.fill:
+    description: Use /masonry fill (overwrites any block)
     default: op
-  buildtools.tool.replace:
-    description: Use /bt replace (replaces matched blocks)
+  masonry.tool.replace:
+    description: Use /masonry replace (replaces matched blocks)
     default: op
-  buildtools.tool.paste:
-    description: Use /bt paste
+  masonry.tool.paste:
+    description: Use /masonry paste
     default: op
-  buildtools.bypass.creative:
+  masonry.bypass.creative:
     description: Skip survival inventory cost
     default: op
-  buildtools.bypass.survival:
+  masonry.bypass.survival:
     description: Skip survival inventory cost
     default: op

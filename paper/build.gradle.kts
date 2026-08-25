@@ -21,7 +21,7 @@ tasks.processResources {
 }
 
 tasks.jar {
-    archiveBaseName.set("buildtools")
+    archiveBaseName.set("masonry")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     dependsOn(configurations.runtimeClasspath)
     from(configurations.runtimeClasspath.map { files ->

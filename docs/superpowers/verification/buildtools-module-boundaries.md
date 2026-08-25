@@ -1,5 +1,7 @@
 # BuildTools module-boundary verification
 
+> Historical record — active project is Masonry.
+
 Date: 2026-08-19
 
 ## Commands

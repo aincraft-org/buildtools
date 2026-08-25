@@ -2,7 +2,7 @@ plugins {
     java
 }
 
-group = "dev.mintychochip"
+group = "dev.mintychochip.masonry"
 version = "0.1.0"
 
 subprojects {
