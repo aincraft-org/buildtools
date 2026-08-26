@@ -10,10 +10,9 @@ out/
 .vscode/
 *.class
 paper/run/
-runpaper/run/
-runpaper/run2/
-runpaper/run3/
-runpaper/run4/
+masonry-test/run/
+masonry-test/run2/
+masonry-test/run3/
+masonry-test/run4/
 .worktrees/
 .superpowers/sdd/
-

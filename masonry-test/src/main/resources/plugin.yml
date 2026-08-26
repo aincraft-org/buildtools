@@ -1,0 +1,6 @@
+name: MasonryTest
+version: ${version}
+main: dev.mintychochip.masonry.test.MasonryTestPlugin
+api-version: "26.2"
+description: Startup smoke-test plugin for Masonry
+softdepend: [Masonry]
