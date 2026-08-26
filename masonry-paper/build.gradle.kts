@@ -6,8 +6,8 @@ repositories {
 }
 
 dependencies {
-    implementation(project(":common"))
-    implementation(project(":api"))
+    implementation(project(":masonry-common"))
+    implementation(project(":masonry-api"))
     compileOnly("io.papermc.paper:paper-api:26.2.build.112-stable")
     testImplementation("io.papermc.paper:paper-api:26.2.build.112-stable")
 }

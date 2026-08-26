@@ -38,11 +38,11 @@ subprojects {
 
 tasks.register("verifyModuleBoundaries") {
     group = "verification"
-    description = "Fail if api or common resolve Paper, Bukkit, or NMS dependencies."
-    dependsOn(":api:compileJava", ":common:compileJava")
+    description = "Fail if masonry-api or masonry-common resolve Paper, Bukkit, or NMS dependencies."
+    dependsOn(":masonry-api:compileJava", ":masonry-common:compileJava")
     doLast {
         val forbiddenPrefixes = listOf("io.papermc", "org.bukkit", "org.spigotmc", "net.minecraft")
-        listOf("api", "common").forEach { name ->
+        listOf("masonry-api", "masonry-common").forEach { name ->
             val compileClasspath = project(name).configurations.getByName("compileClasspath")
             compileClasspath.incoming.resolutionResult.allDependencies.forEach { dependency ->
                 if (dependency is org.gradle.api.artifacts.result.ResolvedDependencyResult) {

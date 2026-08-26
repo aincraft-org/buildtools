@@ -16,8 +16,8 @@ Rename the existing `runpaper` Gradle module to `masonry-test` and add a minimal
 - Update `settings.gradle.kts`.
 - Update `masonry-test/build.gradle.kts` to:
   - build a thin `masonry-test` plugin jar,
-  - mirror `:paper`’s `processResources` and `plugin.yml` version expansion,
-  - load both the `:paper` and the `masonry-test` jars via `run-paper`.
+  - mirror `:masonry-paper`’s `processResources` and `plugin.yml` version expansion,
+  - load both the `:masonry-paper` and the `masonry-test` jars via `run-paper`.
 - Add `masonry-test/src/main/resources/plugin.yml`.
 - Add `MasonryTestPlugin` that logs whether `Masonry` is present on enable.
 - Clean stale `run*/plugins/` directories after the move.
@@ -54,7 +54,7 @@ masonry-test/
 - `papermc` repository
 - `compileOnly("io.papermc.paper:paper-api:26.2.build.112-stable")`
 
-The `processResources` block is identical to `:paper`’s:
+The `processResources` block is identical to `:masonry-paper`’s:
 
 ```kotlin
 tasks.processResources {
@@ -78,7 +78,7 @@ runPaper {
 tasks.runServer {
     minecraftVersion("26.2")
     serverJar(file("run/cache/paper-26.2-112.jar"))
-    pluginJars.from(project(":paper").tasks.named<Jar>("jar").flatMap { it.archiveFile })
+    pluginJars.from(project(":masonry-paper").tasks.named<Jar>("jar").flatMap { it.archiveFile })
     pluginJars.from(tasks.jar)
 }
 ```
@@ -111,7 +111,7 @@ After `git mv runpaper masonry-test`, delete `masonry-test/run*/plugins/` so `ru
 
 ## Non-functional requirements
 
-- The `masonry-test` jar must stay thin and not bundle `paper-api`, `common`, or `api` classes.
+- The `masonry-test` jar must stay thin and not bundle `paper-api`, `masonry-common`, or `masonry-api` classes.
 - The build must remain compatible with Java 25 and the existing toolchain.
 - The smoke test must not prevent the server from starting if Masonry is absent (hence `softdepend`, not `depend`).
 

@@ -45,7 +45,7 @@ Success looks like: a server owner can install the plugin, players can quickly s
 ## Implementation guidance
 
 - Target Paper API 26.2 (`io.papermc.paper:paper-api:26.2.build.112-stable`) and Java 25.
-- Gradle modules: `api` (contracts), `common` (JVM domain), `paper` (Paper adapter). See `docs/superpowers/specs/2026-08-17-buildtools-gradle-modules-design.md`.
+- Gradle modules: `masonry-api` (contracts), `masonry-common` (JVM domain), `masonry-paper` (Paper adapter). See `docs/superpowers/specs/2026-08-17-buildtools-gradle-modules-design.md`.
 - Keep tools stateless; per-player session holds selection, clipboard, and undo history.
 - Distinguish `interaction_distance` (server raycast/start-point reach) from `selection_extent` and `max_operation_blocks`; selection extent and operation size are not limited to interaction distance.
 - Render bounded previews with aggregated outlines or capped display entities; never create one `BlockDisplay` per affected block for large operations.
@@ -61,7 +61,7 @@ Success looks like: a server owner can install the plugin, players can quickly s
 - [x] `survival` — inventory cost, refund on undo, permission nodes
 - [x] `blueprints` — copy-to-clipboard and save/load named blueprints
 - [x] this root catalog and project bootstrap
-- [x] Gradle multi-project scaffold: api, common, paper
+- [x] Gradle multi-project scaffold: masonry-api, masonry-common, masonry-paper
 - [x] gadget — `/masonry wand` Masonry Gadget item: shift-click pos1/paste, right-click pos2+apply, mode cycling, offhand material
 
 ### Current notes
@@ -96,7 +96,7 @@ V1 command surface is `/masonry` (pos1/pos2, replace, fill, copy, paste, undo/re
 | 2026-08-17 | Reach is split into interaction distance, selection extent, and operation block limits | Lets players operate on an approved region beyond their initial raycast without making reach unlimited |
 | 2026-08-17 | Large previews use bounded aggregated rendering | Avoids one display entity per affected block and keeps previews performant |
 | 2026-08-17 | Paper 26.2 and Java 25 | Matches current Paper API; 26.2 requires Java 25 |
-| 2026-08-17 | Strict api/common/paper Gradle split | Keeps Paper at the edge and makes domain tests JVM-only |
+| 2026-08-17 | Strict masonry-api/masonry-common/masonry-paper Gradle split | Keeps Paper at the edge and makes domain tests JVM-only |
 | 2026-08-19 | Command-only selection in V1 | Wand item is deferred; `/bt pos1`/`pos2` is enough |
 | 2026-08-19 | Defaults 6 / 64 / 32768 | Locked so limits are testable without a config file |
 | 2026-08-19 | Flat-file Sponge Schematic blueprints | Player-scoped `.schem` + JSON metadata under the plugin data folder |

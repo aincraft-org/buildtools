@@ -13,7 +13,7 @@ Created by **mintychochip**.
 
 ## Installation
 
-1. Build the plugin jar: `./gradlew :paper:build` and copy `paper/build/libs/masonry-0.1.0.jar`.
+1. Build the plugin jar: `./gradlew :masonry-paper:build` and copy `masonry-paper/build/libs/masonry-0.1.0.jar`.
 2. Drop it in your server's `plugins/` directory.
 3. Restart the server.
 4. Optional: edit `plugins/Masonry/config.yml` to adjust default limits.
@@ -75,9 +75,9 @@ Masonry is a Gradle multi-project using Java 25.
 
 Modules:
 
-- `api` — platform-neutral contracts
-- `common` — domain behavior, no Minecraft dependencies
-- `paper` — Paper plugin and platform adapters
+- `masonry-api` — platform-neutral contracts
+- `masonry-common` — domain behavior, no Minecraft dependencies
+- `masonry-paper` — Paper plugin and platform adapters
 - `masonry-test` — smoke-test plugin and `run-paper` server harness
 
 Run a local test server:

@@ -9,7 +9,7 @@ out/
 .settings/
 .vscode/
 *.class
-paper/run/
+masonry-paper/run/
 masonry-test/run/
 masonry-test/run2/
 masonry-test/run3/

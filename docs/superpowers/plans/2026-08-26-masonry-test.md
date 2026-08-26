@@ -4,7 +4,7 @@
 
 **Goal:** Rename the `runpaper` Gradle module to `masonry-test` and add a thin startup smoke-test Paper plugin that verifies the main `Masonry` plugin is loaded.
 
-**Architecture:** A separate Gradle module named `masonry-test` builds a thin plugin jar. The `run-paper` harness loads both the `:paper` jar and the `masonry-test` jar in the same server. The test plugin's `onEnable` checks `PluginManager.getPlugin("Masonry")` and logs the result.
+**Architecture:** A separate Gradle module named `masonry-test` builds a thin plugin jar. The `run-paper` harness loads both the `:masonry-paper` jar and the `masonry-test` jar in the same server. The test plugin's `onEnable` checks `PluginManager.getPlugin("Masonry")` and logs the result.
 
 **Tech Stack:** Gradle Kotlin DSL, `xyz.jpenilla.run-paper` 3.1.0, `io.papermc.paper:paper-api:26.2.build.112-stable`, Java 25.
 
@@ -14,9 +14,9 @@
 - Group: `dev.mintychochip.masonry` (inherited from root `build.gradle.kts`).
 - Java toolchain: Java 25.
 - Paper API version: `io.papermc.paper:paper-api:26.2.build.112-stable`.
-- The `masonry-test` jar must remain thin and contain only the plugin class and `plugin.yml`; no bundled `paper-api`, `common`, or `api` classes.
-- `processResources` in `masonry-test/build.gradle.kts` must mirror `:paper`’s pattern exactly (`props` map, `inputs.properties(props)`, `filesMatching("plugin.yml") { expand(props) }`).
-- `run-paper` loads only the `:paper` jar and the `masonry-test` jar.
+- The `masonry-test` jar must remain thin and contain only the plugin class and `plugin.yml`; no bundled `paper-api`, `masonry-common`, or `masonry-api` classes.
+- `processResources` in `masonry-test/build.gradle.kts` must mirror `:masonry-paper`’s pattern exactly (`props` map, `inputs.properties(props)`, `filesMatching("plugin.yml") { expand(props) }`).
+- `run-paper` loads only the `:masonry-paper` jar and the `masonry-test` jar.
 - `plugin.yml` for `MasonryTest` must use `softdepend: [Masonry]` so the server starts even if Masonry is missing.
 
 ---
@@ -45,25 +45,16 @@ Expected: `Project ':runpaper'` is listed; `Project ':masonry-test'` is not.
 
 - [ ] **Step 3: Write minimal implementation**
 
-Update `.gitignore` to match the new module name. Replace these lines:
+Update `.gitignore` to include run directories for `masonry-paper` and `masonry-test`:
 
 ```text
-paper/run/
-runpaper/run/
-runpaper/run2/
-runpaper/run3/
-runpaper/run4/
-```
-
-with:
-
-```text
-paper/run/
+masonry-paper/run/
 masonry-test/run/
 masonry-test/run2/
 masonry-test/run3/
 masonry-test/run4/
 ```
+
 
 Then move the module directory (this moves both tracked and ignored files):
 
@@ -75,9 +66,9 @@ Then change `settings.gradle.kts` line 6 from `include("runpaper")` to `include(
 
 ```kotlin
 rootProject.name = "masonry"
-include("api")
-include("common")
-include("paper")
+include("masonry-api")
+include("masonry-common")
+include("masonry-paper")
 include("masonry-test")
 ```
 
@@ -165,14 +156,14 @@ runPaper {
 tasks.runServer {
     minecraftVersion("26.2")
     serverJar(file("run/cache/paper-26.2-112.jar"))
-    pluginJars.from(project(":paper").tasks.named<Jar>("jar").flatMap { it.archiveFile })
+    pluginJars.from(project(":masonry-paper").tasks.named<Jar>("jar").flatMap { it.archiveFile })
 }
 
 tasks.register<xyz.jpenilla.runpaper.task.RunServer>("runServer4") {
     minecraftVersion("26.2")
     serverJar(file("run/cache/paper-26.2-112.jar"))
     runDirectory(file("run4"))
-    pluginJars.from(project(":paper").tasks.named<Jar>("jar").flatMap { it.archiveFile })
+    pluginJars.from(project(":masonry-paper").tasks.named<Jar>("jar").flatMap { it.archiveFile })
     args("--port", "25568")
 }
 ```
@@ -369,7 +360,7 @@ runPaper {
 tasks.runServer {
     minecraftVersion("26.2")
     serverJar(file("run/cache/paper-26.2-112.jar"))
-    pluginJars.from(project(":paper").tasks.named<Jar>("jar").flatMap { it.archiveFile })
+    pluginJars.from(project(":masonry-paper").tasks.named<Jar>("jar").flatMap { it.archiveFile })
     pluginJars.from(tasks.jar.flatMap { it.archiveFile })
 }
 
@@ -377,7 +368,7 @@ tasks.register<xyz.jpenilla.runpaper.task.RunServer>("runServer4") {
     minecraftVersion("26.2")
     serverJar(file("run/cache/paper-26.2-112.jar"))
     runDirectory(file("run4"))
-    pluginJars.from(project(":paper").tasks.named<Jar>("jar").flatMap { it.archiveFile })
+    pluginJars.from(project(":masonry-paper").tasks.named<Jar>("jar").flatMap { it.archiveFile })
     pluginJars.from(tasks.jar.flatMap { it.archiveFile })
     args("--port", "25568")
 }
@@ -462,10 +453,10 @@ git diff --exit-code || (git add -u && git commit -m "verify: project checks pas
 **1. Spec coverage:**
 - Module rename and `settings.gradle.kts` update — Task 1.
 - Thin `masonry-test` jar with `archiveBaseName.set("masonry-test")` — Task 2.
-- Mirror `:paper` `processResources` pattern — Task 2.
+- Mirror `:masonry-paper` `processResources` pattern — Task 2.
 - `plugin.yml` with `softdepend: [Masonry]` — Task 2.
 - `MasonryTestPlugin` that logs Masonry presence — Task 3.
-- `run-paper` loads both `:paper` and `masonry-test` jars — Task 4.
+- `run-paper` loads both `:masonry-paper` and `masonry-test` jars — Task 4.
 - Clean stale `run*/plugins/` caches — Task 4.
 
 **2. Placeholder scan:** no `TBD`, `TODO`, `implement later`, or un-described code. Each task contains the exact file contents and commands.

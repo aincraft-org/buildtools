@@ -34,7 +34,7 @@ runPaper {
 tasks.runServer {
     minecraftVersion("26.2")
     serverJar(file("run/cache/paper-26.2-112.jar"))
-    pluginJars.from(project(":paper").tasks.named<Jar>("jar").flatMap { it.archiveFile })
+    pluginJars.from(project(":masonry-paper").tasks.named<Jar>("jar").flatMap { it.archiveFile })
     pluginJars.from(tasks.jar.flatMap { it.archiveFile })
 }
 
@@ -42,7 +42,7 @@ tasks.register<xyz.jpenilla.runpaper.task.RunServer>("runServer4") {
     minecraftVersion("26.2")
     serverJar(file("run/cache/paper-26.2-112.jar"))
     runDirectory(file("run4"))
-    pluginJars.from(project(":paper").tasks.named<Jar>("jar").flatMap { it.archiveFile })
+    pluginJars.from(project(":masonry-paper").tasks.named<Jar>("jar").flatMap { it.archiveFile })
     pluginJars.from(tasks.jar.flatMap { it.archiveFile })
     args("--port", "25568")
 }

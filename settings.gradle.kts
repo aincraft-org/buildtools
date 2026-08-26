@@ -1,6 +1,6 @@
 rootProject.name = "masonry"
 
-include("api")
-include("common")
-include("paper")
+include("masonry-api")
+include("masonry-common")
+include("masonry-paper")
 include("masonry-test")
