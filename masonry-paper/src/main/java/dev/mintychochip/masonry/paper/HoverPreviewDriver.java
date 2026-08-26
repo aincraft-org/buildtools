@@ -13,6 +13,7 @@ import java.util.Objects;
 import dev.mintychochip.masonry.paper.adapter.GadgetItem;
 import java.util.UUID;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.RayTraceResult;
@@ -69,18 +70,19 @@ public final class HoverPreviewDriver implements Runnable {
             PlayerSession session = sessions.session(actor);
             BlockPosition pos1 = session.pos1().orElse(null);
             BlockPosition target = targetOf(player);
-            // In paste/move, show the held clipboard as a ghost at the aim target; the
+            BlockPosition placement = placementOf(player);
+            // In paste/move, show the held clipboard as a ghost at the placement cell; the
             // selection outline is meaningless for a paste origin.
             boolean pasteOrMove = session.mode() == dev.mintychochip.masonry.common.session.ToolMode.PASTE
                     || session.mode() == dev.mintychochip.masonry.common.session.ToolMode.MOVE
                     || session.mode() == dev.mintychochip.masonry.common.session.ToolMode.COPY
                     || session.mode() == dev.mintychochip.masonry.common.session.ToolMode.CUT;
-            if (pasteOrMove && session.clipboard().isPresent() && target != null) {
-                String signature = session.mode() + "|ghost|" + target;
+            if (pasteOrMove && session.clipboard().isPresent() && placement != null) {
+                String signature = session.mode() + "|ghost|" + placement;
                 if (signature.equals(shownRegions.put(player.getUniqueId(), signature))) {
                     continue;
                 }
-                previews.showGhost(actor, session.clipboard().orElseThrow(), target);
+                previews.showGhost(actor, session.clipboard().orElseThrow(), placement);
                 continue;
             }
             if (pos1 == null
@@ -111,5 +113,17 @@ public final class HoverPreviewDriver implements Runnable {
             return null;
         }
         return new BlockPosition(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
+    }
+    private BlockPosition placementOf(Player player) {
+        RayTraceResult hit = player.rayTraceBlocks(limits.interactionDistance());
+        Block block = hit != null ? hit.getHitBlock() : null;
+        if (block == null) {
+            return null;
+        }
+        BlockFace face = hit.getHitBlockFace();
+        int dx = face == null ? 0 : face.getModX();
+        int dy = face == null ? 0 : face.getModY();
+        int dz = face == null ? 0 : face.getModZ();
+        return new BlockPosition(block.getWorld().getName(), block.getX() + dx, block.getY() + dy, block.getZ() + dz);
     }
 }

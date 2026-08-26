@@ -89,12 +89,12 @@ public final class GadgetListener implements Listener {
         if (sneaking && (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK)) {
             consumed = cycleMode(player);
         } else if (sneaking && (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK)) {
-            consumed = handleShiftRightClick(player, targetOf(player));
+            consumed = handleShiftRightClick(player, shiftRightTarget(player));
         } else if (!sneaking && (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK)) {
             if (isRepeatClick(player.getUniqueId(), player.getWorld().getFullTime())) {
                 consumed = repeat(player);
             } else {
-                consumed = handleRightClick(player, targetOf(player));
+                consumed = handleRightClick(player, rightClickTarget(player));
             }
         }
 
@@ -154,7 +154,7 @@ public final class GadgetListener implements Listener {
      * @return {@code true} to consume the click
      */
     private boolean repeat(Player player) {
-        BlockPosition target = targetOf(player);
+        BlockPosition target = repeatTarget(player);
         if (target == null) {
             return true;
         }
@@ -300,13 +300,28 @@ public final class GadgetListener implements Listener {
     }
 
     /**
-     * The block the player is aiming at, shifted one cell in the direction of the hit face —
-     * the cell a vanilla placement would occupy (placing on the adjacent face).
+     * The block the player is looking at.
      *
      * @param player player
-     * @return adjacent cell, or {@code null} if nothing hit
+     * @return hit block, or {@code null} if nothing in range
      */
     private BlockPosition targetOf(Player player) {
+        RayTraceResult hit = player.rayTraceBlocks(limits.interactionDistance());
+        Block block = hit != null ? hit.getHitBlock() : null;
+        if (block == null) {
+            return null;
+        }
+        return new BlockPosition(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
+    }
+
+    /**
+     * The cell a vanilla block placement would occupy: the aimed block shifted one cell in the
+     * direction of the hit face (placing on the adjacent face).
+     *
+     * @param player player
+     * @return adjacent cell, or {@code null} if nothing in range
+     */
+    private BlockPosition placementOf(Player player) {
         RayTraceResult hit = player.rayTraceBlocks(limits.interactionDistance());
         Block block = hit != null ? hit.getHitBlock() : null;
         if (block == null) {
@@ -317,6 +332,21 @@ public final class GadgetListener implements Listener {
         int dy = face == null ? 0 : face.getModY();
         int dz = face == null ? 0 : face.getModZ();
         return new BlockPosition(block.getWorld().getName(), block.getX() + dx, block.getY() + dy, block.getZ() + dz);
+    }
+
+    private BlockPosition shiftRightTarget(Player player) {
+        ToolMode mode = sessions.session(actorOf(player)).mode();
+        return mode == ToolMode.PASTE ? placementOf(player) : targetOf(player);
+    }
+
+    private BlockPosition rightClickTarget(Player player) {
+        ToolMode mode = sessions.session(actorOf(player)).mode();
+        return mode == ToolMode.PASTE ? placementOf(player) : targetOf(player);
+    }
+
+    private BlockPosition repeatTarget(Player player) {
+        PlayerSession session = sessions.session(actorOf(player));
+        return "paste".equals(session.lastTool()) ? placementOf(player) : targetOf(player);
     }
 
     private static ActorId actorOf(Player player) {
