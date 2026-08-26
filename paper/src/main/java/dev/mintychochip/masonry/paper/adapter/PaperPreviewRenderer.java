@@ -1,11 +1,14 @@
 package dev.mintychochip.masonry.paper.adapter;
 
 import dev.mintychochip.masonry.api.ActorId;
+import dev.mintychochip.masonry.api.clipboard.BlockOffset;
+import dev.mintychochip.masonry.api.clipboard.Clipboard;
 import dev.mintychochip.masonry.api.preview.PreviewMode;
 import dev.mintychochip.masonry.api.selection.CuboidSelection;
 import dev.mintychochip.masonry.api.service.PreviewRenderer;
 import dev.mintychochip.masonry.api.tool.ToolPreview;
 import dev.mintychochip.masonry.api.world.BlockPosition;
+import dev.mintychochip.masonry.api.world.BlockState;
 import dev.mintychochip.masonry.common.preview.PreviewGeometry;
 import dev.mintychochip.masonry.common.session.PlayerSessionStore;
 import java.util.ArrayList;
@@ -28,6 +31,7 @@ import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Shulker;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -47,7 +51,8 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
     private final JavaPlugin plugin;
     private final Server server;
     private final PlayerSessionStore sessions;
-    private final Map<ActorId, List<UUID>> spawned = new HashMap<>();
+    private final Map<ActorId, Map<BlockPosition, UUID>> spawned = new HashMap<>();
+    private final Map<ActorId, PreviewMode> shownModes = new HashMap<>();
 
     public PaperPreviewRenderer(JavaPlugin plugin, PlayerSessionStore sessions) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
@@ -77,13 +82,91 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
     }
 
     @Override
-    public void clear(ActorId actor) {
+    public void showGhost(ActorId actor, Clipboard clipboard, BlockPosition origin) {
         Objects.requireNonNull(actor, "actor");
-        List<UUID> ids = spawned.remove(actor);
-        if (ids == null) {
+        Objects.requireNonNull(clipboard, "clipboard");
+        Objects.requireNonNull(origin, "origin");
+        Player player = server.getPlayer(actor.value());
+        if (player == null) {
+            reset(actor);
             return;
         }
-        for (UUID id : ids) {
+        World world = server.getWorld(origin.worldId());
+        if (world == null) {
+            reset(actor);
+            return;
+        }
+        List<BlockPosition> points = clipboard.blocks().keySet().stream()
+                .map(offset -> origin.offset(offset.x(), offset.y(), offset.z()))
+                .filter(position -> {
+                    BlockState state = clipboard.blocks().get(
+                            new BlockOffset(
+                                    position.x() - origin.x(),
+                                    position.y() - origin.y(),
+                                    position.z() - origin.z()));
+                    return state != null && !state.isAir();
+                })
+                .toList();
+        if (points.size() > MAX_DISPLAYS) {
+            points = points.subList(0, MAX_DISPLAYS);
+        }
+        Map<BlockPosition, UUID> next = retain(actor, PreviewMode.BLOCK_CLEAR, points);
+        for (BlockPosition point : points) {
+            if (next.containsKey(point)) {
+                continue;
+            }
+            BlockState state = clipboard.blocks().get(
+                    new BlockOffset(
+                            point.x() - origin.x(),
+                            point.y() - origin.y(),
+                            point.z() - origin.z()));
+            if (state == null || state.isAir()) {
+                continue;
+            }
+            // Spawn at the cell corner with identity scaling: a BlockDisplay occupies
+            // [x, x+1] × [y, y+1] × [z, z+1], exactly like a real block. Full size keeps the
+            // ghost aligned with the world at its boundaries — no half-block jutting.
+            Location location = new Location(world, point.x(), point.y(), point.z());
+            try {
+                BlockData data = server.createBlockData(PaperBlockStates.toBukkitString(state));
+                BlockDisplay display = world.spawn(location, BlockDisplay.class, entity -> {
+                    entity.setBlock(data);
+                    entity.setPersistent(false);
+                    entity.setTransformation(new Transformation(
+                            new Vector3f(0f, 0f, 0f),
+                            new AxisAngle4f(),
+                            new Vector3f(1f, 1f, 1f),
+                            new AxisAngle4f()));
+                    entity.setVisibleByDefault(false);
+                });
+                player.showEntity(plugin, display);
+                next.put(point, display.getUniqueId());
+            } catch (RuntimeException ignored) {
+                // skip this cell
+            }
+        }
+        spawned.put(actor, next);
+        shownModes.put(actor, PreviewMode.BLOCK_CLEAR);
+    }
+
+    @Override
+    public void clear(ActorId actor) {
+        Objects.requireNonNull(actor, "actor");
+        reset(actor);
+    }
+
+    /**
+     * Removes every tracked entity for {@code actor} and drops its tracking state.
+     *
+     * @param actor viewer
+     */
+    private void reset(ActorId actor) {
+        Map<BlockPosition, UUID> previous = spawned.remove(actor);
+        shownModes.remove(actor);
+        if (previous == null) {
+            return;
+        }
+        for (UUID id : previous.values()) {
             Entity entity = server.getEntity(id);
             if (entity != null) {
                 entity.remove();
@@ -91,31 +174,71 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
         }
     }
 
+    /**
+     * Returns the surviving position→uuid map after removing entities that are no longer
+     * wanted. When the preview mode changed, every previous entity is removed first.
+     *
+     * @param actor viewer
+     * @param mode mode being rendered
+     * @param wanted positions that must survive
+     * @return map of wanted positions that already had a display
+     */
+    private Map<BlockPosition, UUID> retain(ActorId actor, PreviewMode mode, List<BlockPosition> wanted) {
+        Map<BlockPosition, UUID> previous = spawned.get(actor);
+        if (previous == null) {
+            return new HashMap<>();
+        }
+        if (shownModes.get(actor) != mode) {
+            reset(actor);
+            return new HashMap<>();
+        }
+        Map<BlockPosition, UUID> next = new HashMap<>();
+        for (BlockPosition position : wanted) {
+            UUID existing = previous.get(position);
+            if (existing != null && server.getEntity(existing) != null) {
+                next.put(position, existing);
+            }
+        }
+        for (Map.Entry<BlockPosition, UUID> entry : previous.entrySet()) {
+            if (!next.containsKey(entry.getKey())) {
+                Entity entity = server.getEntity(entry.getValue());
+                if (entity != null) {
+                    entity.remove();
+                }
+            }
+        }
+        return next;
+    }
+
     private void render(ActorId actor, CuboidSelection region) {
-        clear(actor);
         Player player = server.getPlayer(actor.value());
         if (player == null) {
+            reset(actor);
             return;
         }
         World world = server.getWorld(region.worldId());
         if (world == null) {
+            reset(actor);
             return;
         }
         PreviewMode mode = sessions.session(actor).previewMode();
         switch (mode) {
-            case TEXT_LOW -> showTextCube(actor, region, world, player, Color.fromARGB(64, 0, 170, 255));
-            case TEXT_HIGH -> showTextCube(actor, region, world, player, Color.fromARGB(180, 0, 170, 255));
+            case TEXT_LOW -> showTextCube(actor, region, world, player, Color.fromARGB(64, 0, 170, 255), mode);
+            case TEXT_HIGH -> showTextCube(actor, region, world, player, Color.fromARGB(180, 0, 170, 255), mode);
             case PARTICLE -> showParticles(actor, region, world, player);
+            case SHULKER -> showShulkerOutline(actor, region, world, player);
             case EXPERIMENTAL_ITEM -> showExperimental(actor, region, world, player, Experimental.ITEM);
             case EXPERIMENTAL_ARMOR -> showExperimental(actor, region, world, player, Experimental.ARMOR);
             default -> showBlockDisplays(actor, region, world, player, mode);
         }
     }
 
-    private void showTextCube(ActorId actor, CuboidSelection region, World world, Player player, Color color) {
+    private void showTextCube(
+            ActorId actor, CuboidSelection region, World world, Player player, Color color, PreviewMode mode) {
+        reset(actor);
         BlockPosition min = region.min();
         BlockPosition max = region.max();
-        List<UUID> ids = new ArrayList<>();
+        Map<BlockPosition, UUID> ids = new HashMap<>();
 
         float xMid = (min.x() + max.x() + 1) / 2.0f;
         float yMid = (min.y() + max.y() + 1) / 2.0f;
@@ -149,12 +272,13 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
                     entity.setVisibleByDefault(false);
                 });
                 player.showEntity(plugin, display);
-                ids.add(display.getUniqueId());
+                ids.put(keyOf(face.location()), display.getUniqueId());
             } catch (RuntimeException ignored) {
                 // fall through to no preview
             }
         }
         spawned.put(actor, ids);
+        shownModes.put(actor, mode);
     }
 
     private void showBlockDisplays(ActorId actor, CuboidSelection region, World world, Player player, PreviewMode mode) {
@@ -165,9 +289,12 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
         };
         BlockData data = server.createBlockData(block);
         List<BlockPosition> points = plan(region);
-        List<UUID> ids = new ArrayList<>();
+        Map<BlockPosition, UUID> next = retain(actor, mode, points);
 
         for (BlockPosition point : points) {
+            if (next.containsKey(point)) {
+                continue;
+            }
             Location location = new Location(world, point.x(), point.y(), point.z());
             try {
                 BlockDisplay display = world.spawn(location, BlockDisplay.class, entity -> {
@@ -181,27 +308,77 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
                     entity.setVisibleByDefault(false);
                 });
                 player.showEntity(plugin, display);
-                ids.add(display.getUniqueId());
+                next.put(point, display.getUniqueId());
             } catch (RuntimeException ignored) {
                 // fall back to particle for this point
                 spawnParticle(player, new Location(world, point.x() + 0.5, point.y() + 0.5, point.z() + 0.5));
             }
         }
-        spawned.put(actor, ids);
+        spawned.put(actor, next);
+        shownModes.put(actor, mode);
     }
 
     private void showParticles(ActorId actor, CuboidSelection region, World world, Player player) {
-        for (BlockPosition point : plan(region)) {
+        List<BlockPosition> points = plan(region);
+        Map<BlockPosition, UUID> next = retain(actor, PreviewMode.PARTICLE, List.of());
+        for (BlockPosition point : points) {
             spawnParticle(player, new Location(world, point.x() + 0.5, point.y() + 0.5, point.z() + 0.5));
         }
-        spawned.put(actor, List.of());
+        spawned.put(actor, next);
+        shownModes.put(actor, PreviewMode.PARTICLE);
+    }
+
+    /**
+     * Renders the selection as client-side invisible, glowing shulker boxes along the outline
+     * edges. Each shulker is spawned invisible to everyone and shown only to {@code player},
+     * with a glow color that traces the region boundary.
+     */
+    private void showShulkerOutline(ActorId actor, CuboidSelection region, World world, Player player) {
+        List<BlockPosition> points = plan(region);
+        Map<BlockPosition, UUID> next = retain(actor, PreviewMode.SHULKER, points);
+
+        for (BlockPosition point : points) {
+            if (next.containsKey(point)) {
+                continue;
+            }
+            // world.spawn places the entity by its feet; a shulker is 1.0 tall, so its base
+            // must rest at point.y() for it to fill the block cell (x/z center on the block).
+            Location location = new Location(world, point.x() + 0.5, point.y(), point.z() + 0.5);
+            try {
+                Shulker shulker = world.spawn(location, Shulker.class, entity -> {
+                    entity.setInvisible(true);
+                    entity.setGlowing(true);
+                    entity.setSilent(true);
+                    entity.setAI(false);
+                    entity.setCollidable(false);
+                    entity.setInvulnerable(true);
+                    entity.setGravity(false);
+                    entity.setPersistent(false);
+                    entity.setVisibleByDefault(false);
+                });
+                player.showEntity(plugin, shulker);
+                next.put(point, shulker.getUniqueId());
+            } catch (RuntimeException ignored) {
+                // fall back to particle for this point
+                spawnParticle(player, new Location(world, point.x() + 0.5, point.y() + 0.5, point.z() + 0.5));
+            }
+        }
+        spawned.put(actor, next);
+        shownModes.put(actor, PreviewMode.SHULKER);
     }
 
     private void showExperimental(ActorId actor, CuboidSelection region, World world, Player player, Experimental kind) {
+        PreviewMode mode = switch (kind) {
+            case ITEM -> PreviewMode.EXPERIMENTAL_ITEM;
+            case ARMOR -> PreviewMode.EXPERIMENTAL_ARMOR;
+        };
         List<BlockPosition> points = plan(region);
-        List<UUID> ids = new ArrayList<>();
+        Map<BlockPosition, UUID> next = retain(actor, mode, points);
 
         for (BlockPosition point : points) {
+            if (next.containsKey(point)) {
+                continue;
+            }
             Location location = new Location(world, point.x(), point.y(), point.z());
             try {
                 Entity entity = switch (kind) {
@@ -209,13 +386,14 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
                     case ARMOR -> spawnArmorStand(world, location);
                 };
                 player.showEntity(plugin, entity);
-                ids.add(entity.getUniqueId());
+                next.put(point, entity.getUniqueId());
             } catch (RuntimeException ignored) {
                 // fall back to particle for this point
                 spawnParticle(player, new Location(world, point.x() + 0.5, point.y() + 0.5, point.z() + 0.5));
             }
         }
-        spawned.put(actor, ids);
+        spawned.put(actor, next);
+        shownModes.put(actor, mode);
     }
 
     private static BlockDisplay spawnBlockDisplay(World world, Location location, String block) {
@@ -281,6 +459,14 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
                 0,
                 0,
                 new Particle.DustOptions(Color.AQUA, 1.0f));
+    }
+
+    private static BlockPosition keyOf(Location location) {
+        return new BlockPosition(
+                location.getWorld().getName(),
+                location.getBlockX(),
+                location.getBlockY(),
+                location.getBlockZ());
     }
 
     private record Face(Location location, float width, float height) {}

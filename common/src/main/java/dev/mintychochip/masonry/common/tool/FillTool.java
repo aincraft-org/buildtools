@@ -40,6 +40,9 @@ public final class FillTool extends MutatingTool {
         }
         List<BlockChange> changes = new ArrayList<>();
         for (BlockPosition position : request.selection().positions()) {
+            if (request.isExcluded(position)) {
+                continue;
+            }
             BlockState before = world.getBlock(position);
             if (!before.equals(target)) {
                 changes.add(new BlockChange(position, before, target));

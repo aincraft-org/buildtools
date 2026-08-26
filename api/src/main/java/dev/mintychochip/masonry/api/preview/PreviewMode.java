@@ -7,6 +7,7 @@ public enum PreviewMode {
     TEXT_LOW,
     TEXT_HIGH,
     PARTICLE,
+    SHULKER,
     EXPERIMENTAL_ITEM,
     EXPERIMENTAL_ARMOR;
 }

@@ -1,7 +1,7 @@
 package dev.mintychochip.masonry.common.session;
 
 public enum ToolMode {
-    FILL, REPLACE, COPY, PASTE;
+    SELECT, FILL, REPLACE, COPY, PASTE, CUT, MOVE;
 
     public ToolMode next() {
         ToolMode[] values = values();

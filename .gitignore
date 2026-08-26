@@ -11,6 +11,9 @@ out/
 *.class
 paper/run/
 runpaper/run/
+runpaper/run2/
+runpaper/run3/
+runpaper/run4/
 .worktrees/
 .superpowers/sdd/
 

@@ -8,7 +8,7 @@ description: Survival-friendly building assistant
 commands:
   masonry:
     description: Masonry command root
-    usage: /masonry <pos1|pos2|replace|fill|survival_fill|copy|paste|undo|redo|blueprint|wand|previewmode>
+    usage: /masonry <pos1|pos2|replace|fill|survival_fill|copy|paste|cut|move|repeat|undo|redo|blueprint|wand|previewmode>
     permission: masonry.command
 permissions:
   masonry.command:
@@ -25,6 +25,12 @@ permissions:
     default: op
   masonry.tool.replace:
     description: Use /masonry replace (replaces matched blocks)
+    default: op
+  masonry.tool.cut:
+    description: Use /masonry cut (copy and clear the selection)
+    default: op
+  masonry.tool.move:
+    description: Use /masonry move (cut and paste elsewhere)
     default: op
   masonry.tool.paste:
     description: Use /masonry paste

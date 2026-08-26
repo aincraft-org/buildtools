@@ -1,11 +1,13 @@
 package dev.mintychochip.masonry.common.support;
 
 import dev.mintychochip.masonry.api.ActorId;
+import dev.mintychochip.masonry.api.operation.BlockChange;
 import dev.mintychochip.masonry.api.service.WorldAccess;
 import dev.mintychochip.masonry.api.world.BlockPosition;
 import dev.mintychochip.masonry.api.world.BlockState;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -81,6 +83,23 @@ public final class InMemoryWorldAccess implements WorldAccess {
             return false;
         }
         blocks.put(position, state);
+        return true;
+    }
+
+    @Override
+    public boolean setBlocks(ActorId actor, List<BlockChange> changes) {
+        for (BlockChange change : changes) {
+            if (cancelled.contains(change.position())) {
+                for (BlockChange applied : changes) {
+                    if (applied == change) {
+                        return false;
+                    }
+                    blocks.put(applied.position(), applied.before());
+                }
+                return false;
+            }
+            blocks.put(change.position(), change.after());
+        }
         return true;
     }
 

@@ -69,6 +69,20 @@ public final class HoverPreviewDriver implements Runnable {
             PlayerSession session = sessions.session(actor);
             BlockPosition pos1 = session.pos1().orElse(null);
             BlockPosition target = targetOf(player);
+            // In paste/move, show the held clipboard as a ghost at the aim target; the
+            // selection outline is meaningless for a paste origin.
+            boolean pasteOrMove = session.mode() == dev.mintychochip.masonry.common.session.ToolMode.PASTE
+                    || session.mode() == dev.mintychochip.masonry.common.session.ToolMode.MOVE
+                    || session.mode() == dev.mintychochip.masonry.common.session.ToolMode.COPY
+                    || session.mode() == dev.mintychochip.masonry.common.session.ToolMode.CUT;
+            if (pasteOrMove && session.clipboard().isPresent() && target != null) {
+                String signature = session.mode() + "|ghost|" + target;
+                if (signature.equals(shownRegions.put(player.getUniqueId(), signature))) {
+                    continue;
+                }
+                previews.showGhost(actor, session.clipboard().orElseThrow(), target);
+                continue;
+            }
             if (pos1 == null
                     || target == null
                     || !pos1.worldId().equals(target.worldId())) {

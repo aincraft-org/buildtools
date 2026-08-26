@@ -1,9 +1,14 @@
 package dev.mintychochip.masonry.paper.adapter;
 
 import dev.mintychochip.masonry.api.ActorId;
+import dev.mintychochip.masonry.api.operation.BlockChange;
 import dev.mintychochip.masonry.api.service.WorldAccess;
 import dev.mintychochip.masonry.api.world.BlockPosition;
 import dev.mintychochip.masonry.api.world.BlockState;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import org.bukkit.Server;
 import org.bukkit.World;
@@ -67,6 +72,30 @@ public final class PaperWorldAccess implements WorldAccess {
     }
 
     @Override
+    public boolean setBlocks(ActorId actor, List<BlockChange> changes) {
+        Map<Long, List<BlockChange>> byChunk = new HashMap<>();
+        for (BlockChange change : changes) {
+            BlockPosition position = change.position();
+            long key = chunkKey(position.x(), position.z());
+            byChunk.computeIfAbsent(key, ignored -> new ArrayList<>()).add(change);
+        }
+        List<BlockChange> applied = new ArrayList<>();
+        for (List<BlockChange> group : byChunk.values()) {
+            for (BlockChange change : group) {
+                if (!setBlock(actor, change.position(), change.after())) {
+                    for (int i = applied.size() - 1; i >= 0; i--) {
+                        BlockChange undo = applied.get(i);
+                        setBlock(actor, undo.position(), undo.before());
+                    }
+                    return false;
+                }
+                applied.add(change);
+            }
+        }
+        return true;
+    }
+
+    @Override
     public boolean isLoaded(BlockPosition position) {
         World world = world(position);
         return world.isChunkLoaded(Math.floorDiv(position.x(), 16), Math.floorDiv(position.z(), 16));
@@ -75,6 +104,10 @@ public final class PaperWorldAccess implements WorldAccess {
     @Override
     public boolean isReplaceable(BlockPosition position) {
         return blockAt(position).getBlockData().isReplaceable();
+    }
+
+    private static long chunkKey(int x, int z) {
+        return ((long) Math.floorDiv(x, 16) << 32) | (Math.floorDiv(z, 16) & 0xffffffffL);
     }
 
     private Block blockAt(BlockPosition position) {

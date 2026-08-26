@@ -4,10 +4,13 @@ import dev.mintychochip.masonry.api.clipboard.Clipboard;
 import dev.mintychochip.masonry.api.preview.PreviewMode;
 import dev.mintychochip.masonry.api.selection.CuboidSelection;
 import dev.mintychochip.masonry.api.world.BlockPosition;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+
 /**
- * Per-player pos1/pos2 and unnamed clipboard. A selection exists only when both corners are set.
+ * Per-player pos1/pos2, unnamed clipboard, tool mode, preview mode, and the last executed
+ * tool (for repeat). A selection exists only when both corners are set.
  */
 public final class PlayerSession {
     private BlockPosition pos1;
@@ -15,6 +18,9 @@ public final class PlayerSession {
     private Clipboard clipboard;
     private ToolMode mode = ToolMode.FILL;
     private PreviewMode previewMode = PreviewMode.BLOCK_LIGHT_BLUE;
+    private String lastTool;
+    private Map<String, String> lastArgs = Map.of();
+
     /** @return first corner if set */
     public Optional<BlockPosition> pos1() {
         return Optional.ofNullable(pos1);
@@ -33,6 +39,12 @@ public final class PlayerSession {
     /** @param position second corner */
     public void setPos2(BlockPosition position) {
         this.pos2 = position;
+    }
+
+    /** Clears both selection corners, keeping clipboard, mode, and preview mode. */
+    public void clearSelection() {
+        pos1 = null;
+        pos2 = null;
     }
 
     /** @return cuboid when both corners are set */
@@ -57,6 +69,7 @@ public final class PlayerSession {
     public ToolMode mode() {
         return mode;
     }
+
     /** @param mode new tool mode */
     public void setMode(ToolMode mode) {
         this.mode = Objects.requireNonNull(mode, "mode");
@@ -72,6 +85,22 @@ public final class PlayerSession {
         this.previewMode = Objects.requireNonNull(previewMode, "previewMode");
     }
 
+    /** @return last executed tool name, or {@code null} if none yet */
+    public String lastTool() {
+        return lastTool;
+    }
+
+    /** @return arguments of the last executed tool, possibly empty */
+    public Map<String, String> lastArgs() {
+        return lastArgs;
+    }
+
+    /** @param toolName last executed tool name, or {@code null} to clear */
+    public void setLastTool(String toolName, Map<String, String> args) {
+        this.lastTool = toolName;
+        this.lastArgs = args == null ? Map.of() : Map.copyOf(args);
+    }
+
     /** Clears corners, clipboard, mode, and preview mode. */
     public void clear() {
         pos1 = null;
@@ -79,5 +108,7 @@ public final class PlayerSession {
         clipboard = null;
         mode = ToolMode.FILL;
         previewMode = PreviewMode.BLOCK_LIGHT_BLUE;
+        lastTool = null;
+        lastArgs = Map.of();
     }
 }

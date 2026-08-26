@@ -41,6 +41,9 @@ public final class ReplaceTool extends MutatingTool {
         }
         List<BlockChange> changes = new ArrayList<>();
         for (BlockPosition position : request.selection().positions()) {
+            if (request.isExcluded(position)) {
+                continue;
+            }
             BlockState before = world.getBlock(position);
             if (BlockStates.matches(before, from) && !before.equals(to)) {
                 changes.add(new BlockChange(position, before, to));

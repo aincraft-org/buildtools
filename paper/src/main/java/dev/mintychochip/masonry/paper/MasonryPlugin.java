@@ -10,7 +10,9 @@ import dev.mintychochip.masonry.common.operation.OperationGuard;
 import dev.mintychochip.masonry.common.operation.OperationHistory;
 import dev.mintychochip.masonry.common.session.PlayerSessionStore;
 import dev.mintychochip.masonry.common.tool.CopyTool;
+import dev.mintychochip.masonry.common.tool.CutTool;
 import dev.mintychochip.masonry.common.tool.FillTool;
+import dev.mintychochip.masonry.common.tool.MoveTool;
 import dev.mintychochip.masonry.common.tool.PasteTool;
 import dev.mintychochip.masonry.common.tool.ReplaceTool;
 import dev.mintychochip.masonry.common.tool.SurvivalFillTool;
@@ -55,6 +57,8 @@ public final class MasonryPlugin extends JavaPlugin implements Listener {
         this.toolRegistry.register(new FillTool());
         this.toolRegistry.register(new SurvivalFillTool());
         this.toolRegistry.register(new CopyTool(sessions));
+        this.toolRegistry.register(new CutTool(sessions));
+        this.toolRegistry.register(new MoveTool(sessions));
         this.toolRegistry.register(new PasteTool());
         this.history = new OperationHistory(20);
         this.toolExecutor = new ToolExecutor(

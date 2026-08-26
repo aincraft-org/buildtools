@@ -37,7 +37,12 @@ class MasonryCommandsTest {
         assertEquals(2, replace.preview().affectedCount());
         assertEquals("replace", replace.record().toolName());
         assertEquals(BlockState.of("minecraft:stone"), harness.world.getBlock(a));
+        assertTrue(harness.sessions.session(TestHarness.ACTOR).selection().isEmpty(),
+                "selection must be cleared after a mutating execute");
 
+        // The selection is dropped after each operation, so re-pick both corners.
+        harness.commands.execute(harness.command(a, a, "pos1"));
+        harness.commands.execute(harness.command(b, b, "pos2"));
         CommandResult fill = harness.commands.execute(harness.command(a, a, "fill", "minecraft:oak_planks"));
         assertFalse(fill.success());
         assertEquals("Insufficient blocks for operation", fill.message());
@@ -46,7 +51,11 @@ class MasonryCommandsTest {
         fill = harness.commands.execute(harness.command(a, a, "fill", "minecraft:oak_planks"));
         assertTrue(fill.success(), fill.message());
         assertEquals(2, fill.record().changes().size());
+        assertTrue(harness.sessions.session(TestHarness.ACTOR).selection().isEmpty(),
+                "selection must be cleared after a successful fill");
 
+        harness.commands.execute(harness.command(a, a, "pos1"));
+        harness.commands.execute(harness.command(b, b, "pos2"));
         CommandResult copy = harness.commands.execute(harness.command(a, a, "copy"));
         assertTrue(copy.success(), copy.message());
         assertTrue(copy.message().contains("Copied"));

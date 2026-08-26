@@ -1,9 +1,11 @@
 package dev.mintychochip.masonry.common.preview;
 
 import dev.mintychochip.masonry.api.ActorId;
+import dev.mintychochip.masonry.api.clipboard.Clipboard;
 import dev.mintychochip.masonry.api.selection.CuboidSelection;
 import dev.mintychochip.masonry.api.service.PreviewRenderer;
 import dev.mintychochip.masonry.api.tool.ToolPreview;
+import dev.mintychochip.masonry.api.world.BlockPosition;
 import java.util.Objects;
 
 /**
@@ -20,6 +22,13 @@ public final class NoOpPreviewRenderer implements PreviewRenderer {
     public void showSelection(ActorId actor, CuboidSelection selection) {
         Objects.requireNonNull(actor, "actor");
         Objects.requireNonNull(selection, "selection");
+    }
+
+    @Override
+    public void showGhost(ActorId actor, Clipboard clipboard, BlockPosition origin) {
+        Objects.requireNonNull(actor, "actor");
+        Objects.requireNonNull(clipboard, "clipboard");
+        Objects.requireNonNull(origin, "origin");
     }
 
     @Override

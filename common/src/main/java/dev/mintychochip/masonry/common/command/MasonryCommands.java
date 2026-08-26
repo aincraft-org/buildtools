@@ -79,6 +79,9 @@ public final class MasonryCommands {
             case "survival_fill" -> fill(context, true);
             case "copy" -> copy(context);
             case "paste" -> paste(context);
+            case "cut" -> runTool(context, "cut", Map.of());
+            case "move" -> runTool(context, "move", Map.of());
+            case "repeat" -> repeat(context);
             case "undo" -> undo(context);
             case "redo" -> redo(context);
             case "blueprint", "bp" -> blueprint(context);
@@ -137,6 +140,26 @@ public final class MasonryCommands {
         return runTool(context, "copy", Map.of());
     }
 
+    /**
+     * Re-runs the last executed tool with its recorded arguments against the current
+     * selection. Nothing to repeat if no tool has run for this actor yet.
+     *
+     * @param context invocation with an active selection
+     * @return result of the re-run, or a clear refusal
+     */
+    private CommandResult repeat(CommandContext context) {
+        PlayerSession session = sessions.session(context.actorId());
+        String toolName = session.lastTool();
+        if (toolName == null) {
+            return CommandResult.fail("Nothing to repeat");
+        }
+        Optional<CuboidSelection> selection = session.selection();
+        if (selection.isEmpty()) {
+            return CommandResult.fail("A valid selection is required");
+        }
+        return runTool(context, toolName, session.lastArgs());
+    }
+
     private CommandResult paste(CommandContext context) {
         PlayerSession session = sessions.session(context.actorId());
         if (session.clipboard().isEmpty()) {
@@ -152,7 +175,8 @@ public final class MasonryCommands {
                 "paste",
                 pasteOrigin,
                 Map.of(),
-                session.clipboard().orElseThrow());
+                session.clipboard().orElseThrow(),
+                context.excludedPositions());
         return dispatch(request, "Pasted " + session.clipboard().orElseThrow().size() + " blocks");
     }
 
@@ -256,7 +280,8 @@ public final class MasonryCommands {
                 toolName,
                 selection.get(),
                 arguments,
-                sessions.clipboard(context.actorId()).orElse(null));
+                sessions.clipboard(context.actorId()).orElse(null),
+                context.excludedPositions());
         String ok = switch (toolName) {
             case "copy" -> "Copied " + selection.get().volume() + " blocks";
             case "fill" -> "Filled";
@@ -283,6 +308,12 @@ public final class MasonryCommands {
                     + " of " + request.selection().volume() + " cells)";
             default -> " (" + preview.affectedCount() + " affected)";
         };
+        // The action is done; drop the selection corners and its preview so the player must
+        // pick fresh pos1/pos2 for the next operation.
+        PlayerSession session = sessions.session(request.actorId());
+        session.setLastTool(request.toolName(), request.arguments());
+        session.clearSelection();
+        previews.clear(request.actorId());
         return CommandResult.executed(successMessage + detail, preview, record.get());
     }
 

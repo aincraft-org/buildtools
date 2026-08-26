@@ -37,17 +37,11 @@ abstract class MutatingTool implements Tool {
     @Override
     public final OperationRecord execute(ToolRequest request, WorldAccess world, SurvivalTransaction survival) {
         BlockPlan plan = plan(request, world);
-        List<BlockChange> applied = new ArrayList<>();
-        for (BlockChange change : plan.changes()) {
-            if (!world.setBlock(request.actorId(), change.position(), change.after())) {
-                for (int i = applied.size() - 1; i >= 0; i--) {
-                    BlockChange undo = applied.get(i);
-                    world.setBlock(request.actorId(), undo.position(), undo.before());
-                }
-                applied.clear();
-                break;
-            }
-            applied.add(change);
+        List<BlockChange> applied;
+        if (world.setBlocks(request.actorId(), plan.changes())) {
+            applied = plan.changes();
+        } else {
+            applied = List.of();
         }
         ResourceCost cost = ResourceCosts.placementCost(applied);
         ResourceCost harvest = ResourceCosts.harvest(applied);

@@ -33,6 +33,19 @@ class PreviewGeometryTest {
     }
 
     @Test
+    void sideAndBottomFacesAreSampledForSmallBoxes() {
+        CuboidSelection selection = new CuboidSelection(
+                pos("world", 0, 64, 0), pos("world", 9, 69, 9));
+        var points = new HashSet<>(PreviewGeometry.outline(selection));
+
+        // Interior of a side face (constant x) and the bottom face (constant y) must render.
+        assertTrue(points.contains(pos("world", 0, 66, 4)),
+                "side-face interior missing: " + points.size() + " points");
+        assertTrue(points.contains(pos("world", 4, 64, 4)),
+                "bottom-face interior missing: " + points.size() + " points");
+    }
+
+    @Test
     void allCornersPresentAndCapRespectedForMaxBox() {
         CuboidSelection selection = new CuboidSelection(
                 pos("world", 0, 64, 0), pos("world", 63, 71, 63));

@@ -28,9 +28,10 @@ public final class PreviewGeometry {
     }
 
     /**
-     * Bounded cuboid preview. Samples the player-facing TOP face as a lattice first so
-     * selections are not hollow from above, then distributes the remaining display budget
-     * across the 12 edges proportionally to their length. Never one point per volume block.
+     * Bounded cuboid preview. Samples the TOP face as a lattice first so selections are not
+     * hollow from above, then fills the four side faces and the BOTTOM face with the
+     * remaining display budget, and finally distributes any leftover across the 12 edges.
+     * Never one point per volume block.
      *
      * @param selection cuboid
      * @param maxDisplays hard cap on returned points
@@ -55,6 +56,35 @@ public final class PreviewGeometry {
             for (int z : samples(min.z(), max.z(), stride)) {
                 points.add(new BlockPosition(selection.worldId(), x, max.y(), z));
             }
+        }
+
+        int sideBudget = Math.max(0, maxDisplays - points.size());
+        int[][] faces = {
+            {min.x(), min.y(), min.z(), min.x(), max.y(), max.z()},  // -X
+            {max.x(), min.y(), min.z(), max.x(), max.y(), max.z()},  // +X
+            {min.x(), min.y(), min.z(), max.x(), max.y(), min.z()},  // -Z
+            {min.x(), min.y(), max.z(), max.x(), max.y(), max.z()},  // +Z
+            {min.x(), min.y(), min.z(), max.x(), min.y(), max.z()}   // BOTTOM
+        };
+        int[] faceAreas = new int[faces.length];
+        long totalArea = 0;
+        for (int i = 0; i < faces.length; i++) {
+            int[] face = faces[i];
+            faceAreas[i] = (Math.abs(face[3] - face[0]) + 1)
+                    * (Math.abs(face[4] - face[1]) + 1)
+                    * (Math.abs(face[5] - face[2]) + 1);
+            totalArea += faceAreas[i];
+        }
+        int remainingBudget = sideBudget;
+        long remainingArea = totalArea;
+        for (int i = 0; i < faces.length && remainingBudget > 0; i++) {
+            int[] face = faces[i];
+            int budget = (int) ((long) faceAreas[i] * remainingBudget / remainingArea);
+            budget = Math.max(1, Math.min(faceAreas[i], budget));
+            sampleFace(points, selection.worldId(),
+                    face[0], face[1], face[2], face[3], face[4], face[5], budget);
+            remainingBudget -= budget;
+            remainingArea -= faceAreas[i];
         }
 
         int[][] edges = {
@@ -129,6 +159,62 @@ public final class PreviewGeometry {
             int y = y0 + (int) Math.round(dy * t);
             int z = z0 + (int) Math.round(dz * t);
             points.add(new BlockPosition(worldId, x, y, z));
+        }
+    }
+
+    /**
+     * Samples the axis-aligned rectangle spanning {@code (x0,y0,z0)} to {@code (x1,y1,z1)}
+     * on a lattice whose stride keeps the sample count at or below {@code budget}. One of the
+     * three axes is constant; the other two are sampled independently with a shared stride so
+     * the lattice always includes both ends of each in-plane axis. Adds every sample to
+     * {@code points}.
+     */
+    private static void sampleFace(
+            Set<BlockPosition> points,
+            String worldId,
+            int x0,
+            int y0,
+            int z0,
+            int x1,
+            int y1,
+            int z1,
+            int budget) {
+        int[] from = {x0, y0, z0};
+        int[] to = {x1, y1, z1};
+        int[] stride = {1, 1, 1};
+        int[] inPlane = new int[2];
+        int inPlaneCount = 0;
+        for (int axis = 0; axis < 3; axis++) {
+            if (to[axis] != from[axis]) {
+                inPlane[inPlaneCount++] = axis;
+            }
+        }
+        if (inPlaneCount == 0) {
+            points.add(new BlockPosition(worldId, x0, y0, z0));
+            return;
+        }
+        // A lattice always samples both ends of each in-plane axis, so a proper face has at
+        // least four samples and a degenerate line face at least two.
+        int minLattice = inPlaneCount == 1 ? 2 : 4;
+        budget = Math.max(budget, minLattice);
+        int lattice;
+        do {
+            lattice = 1;
+            for (int axis = 0; axis < 3; axis++) {
+                lattice *= samples(from[axis], to[axis], stride[axis]).size();
+            }
+            if (lattice > budget) {
+                for (int i = 0; i < inPlaneCount; i++) {
+                    stride[inPlane[i]]++;
+                }
+            }
+        } while (lattice > budget);
+        for (int x : samples(from[0], to[0], stride[0])) {
+            for (int y : samples(from[1], to[1], stride[1])) {
+                for (int z : samples(from[2], to[2], stride[2])) {
+                    points.add(new BlockPosition(worldId, x, y, z));
+                }
+            }
         }
     }
 }

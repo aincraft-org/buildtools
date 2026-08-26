@@ -3,9 +3,11 @@ package dev.mintychochip.masonry.api.tool;
 import dev.mintychochip.masonry.api.ActorId;
 import dev.mintychochip.masonry.api.clipboard.Clipboard;
 import dev.mintychochip.masonry.api.selection.CuboidSelection;
+import dev.mintychochip.masonry.api.world.BlockPosition;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Input to a tool invocation.
@@ -15,13 +17,15 @@ import java.util.Optional;
  * @param selection region or paste origin; may be {@code null}
  * @param arguments tool-specific keys ({@code from}/{@code to}/{@code block})
  * @param clipboard paste source; may be {@code null}
+ * @param excludedPositions cells the operation must never write (e.g. the actor standing in them)
  */
 public record ToolRequest(
         ActorId actorId,
         String toolName,
         CuboidSelection selection,
         Map<String, String> arguments,
-        Clipboard clipboard) {
+        Clipboard clipboard,
+        Set<BlockPosition> excludedPositions) {
     /**
      * @throws NullPointerException if actor or tool name is {@code null}
      * @throws IllegalArgumentException if tool name is blank
@@ -33,6 +37,9 @@ public record ToolRequest(
             throw new IllegalArgumentException("toolName must be present");
         }
         arguments = Map.copyOf(arguments == null ? Map.of() : arguments);
+        excludedPositions = excludedPositions == null
+                ? Set.of()
+                : Set.copyOf(excludedPositions);
     }
 
     /**
@@ -44,7 +51,7 @@ public record ToolRequest(
      * @param arguments arguments
      */
     public ToolRequest(ActorId actorId, String toolName, CuboidSelection selection, Map<String, String> arguments) {
-        this(actorId, toolName, selection, arguments, null);
+        this(actorId, toolName, selection, arguments, null, Set.of());
     }
 
     /** @return selection if present */
@@ -55,6 +62,11 @@ public record ToolRequest(
     /** @return clipboard if present */
     public Optional<Clipboard> clipboardOptional() {
         return Optional.ofNullable(clipboard);
+    }
+
+    /** @return {@code true} if {@code position} must never be written */
+    public boolean isExcluded(BlockPosition position) {
+        return excludedPositions.contains(position);
     }
 
     /**

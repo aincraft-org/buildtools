@@ -47,6 +47,9 @@ public final class PasteTool extends MutatingTool {
         BlockPosition max = origin;
         for (Map.Entry<BlockPosition, BlockState> entry : placed.entrySet()) {
             BlockPosition position = entry.getKey();
+            if (request.isExcluded(position)) {
+                continue;
+            }
             min = new BlockPosition(
                     origin.worldId(),
                     Math.min(min.x(), position.x()),
