@@ -28,10 +28,13 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.plugin.lifecycle.event.LifecycleEventManager;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import java.util.List;
+import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.Team;
 
 /**
  * Paper entry point. Wires {@code api}/{@code common} ports, registers replace/fill/copy/paste,
@@ -47,6 +50,7 @@ public final class MasonryPlugin extends JavaPlugin implements Listener {
     private PaperTaskScheduler taskScheduler;
     private HoverPreviewDriver hoverPreviews;
     private PlayerSessionStore sessions;
+    private Team previewTeam;
 
     @Override
     public void onEnable() {
@@ -63,7 +67,18 @@ public final class MasonryPlugin extends JavaPlugin implements Listener {
         this.history = new OperationHistory(20);
         this.toolExecutor = new ToolExecutor(
                 toolRegistry, history, new OperationGuard(limits), new PaperPermissionService(getServer()));
-        this.previewRenderer = new PaperPreviewRenderer(this, sessions);
+
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+        Team existing = scoreboard.getTeam("masonry_preview");
+        if (existing != null) {
+            existing.unregister();
+        }
+        this.previewTeam = scoreboard.registerNewTeam("masonry_preview");
+        this.previewTeam.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
+        this.previewTeam.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.NEVER);
+        this.previewTeam.setCanSeeFriendlyInvisibles(false);
+
+        this.previewRenderer = new PaperPreviewRenderer(this, sessions, previewTeam);
         this.worldAccess = new PaperWorldAccess(getServer());
         this.survivalTransaction = new PaperSurvivalTransaction(getServer());
         this.taskScheduler = new PaperTaskScheduler(this);
@@ -95,6 +110,10 @@ public final class MasonryPlugin extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
+        if (this.previewTeam != null) {
+            this.previewTeam.unregister();
+            this.previewTeam = null;
+        }
         this.toolRegistry = null;
         this.toolExecutor = null;
         this.history = null;
@@ -121,7 +140,7 @@ public final class MasonryPlugin extends JavaPlugin implements Listener {
             sessions.remove(actor);
         }
         if (hoverPreviews != null) {
-            hoverPreviews.forget(event.getPlayer().getUniqueId());
+            hoverPreviews.forget(actor.value());
         }
     }
 }

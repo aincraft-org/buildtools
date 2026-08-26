@@ -39,6 +39,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Transformation;
 import org.joml.AxisAngle4f;
 import org.joml.Vector3f;
+import org.bukkit.scoreboard.Team;
 
 /**
  * Multi-mode preview renderer. Viable modes are translucent-glass {@link BlockDisplay},
@@ -53,11 +54,13 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
     private final PlayerSessionStore sessions;
     private final Map<ActorId, Map<BlockPosition, UUID>> spawned = new HashMap<>();
     private final Map<ActorId, PreviewMode> shownModes = new HashMap<>();
+    private final Team previewTeam;
 
-    public PaperPreviewRenderer(JavaPlugin plugin, PlayerSessionStore sessions) {
+    public PaperPreviewRenderer(JavaPlugin plugin, PlayerSessionStore sessions, Team previewTeam) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.server = plugin.getServer();
         this.sessions = Objects.requireNonNull(sessions, "sessions");
+        this.previewTeam = Objects.requireNonNull(previewTeam, "previewTeam");
     }
 
     /**
@@ -169,6 +172,7 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
         for (UUID id : previous.values()) {
             Entity entity = server.getEntity(id);
             if (entity != null) {
+                previewTeam.removeEntity(entity);
                 entity.remove();
             }
         }
@@ -203,6 +207,7 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
             if (!next.containsKey(entry.getKey())) {
                 Entity entity = server.getEntity(entry.getValue());
                 if (entity != null) {
+                    previewTeam.removeEntity(entity);
                     entity.remove();
                 }
             }
@@ -357,6 +362,7 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
                     entity.setPersistent(false);
                     entity.setVisibleByDefault(false);
                 });
+                previewTeam.addEntity(shulker);
                 player.showEntity(plugin, shulker);
                 next.put(point, shulker.getUniqueId());
             } catch (RuntimeException ignored) {
