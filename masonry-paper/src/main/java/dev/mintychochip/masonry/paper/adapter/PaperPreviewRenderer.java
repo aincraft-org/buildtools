@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
+import java.util.concurrent.atomic.AtomicReference;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -126,23 +127,15 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
             if (state == null || state.isAir()) {
                 continue;
             }
-            // Spawn at the cell corner with identity scaling: a BlockDisplay occupies
-            // [x, x+1] × [y, y+1] × [z, z+1], exactly like a real block. Full size keeps the
-            // ghost aligned with the world at its boundaries — no half-block jutting.
             Location location = new Location(world, point.x(), point.y(), point.z());
             try {
                 BlockData data = server.createBlockData(PaperBlockStates.toBukkitString(state));
-                BlockDisplay display = world.spawn(location, BlockDisplay.class, entity -> {
-                    entity.setBlock(data);
-                    entity.setPersistent(false);
-                    entity.setTransformation(new Transformation(
-                            new Vector3f(0f, 0f, 0f),
-                            new AxisAngle4f(),
-                            new Vector3f(1f, 1f, 1f),
-                            new AxisAngle4f()));
-                    entity.setVisibleByDefault(false);
-                });
-                player.showEntity(plugin, display);
+                BlockDisplay display = spawnAnimatedBlockDisplay(
+                        world, player, location, origin, data, new Transformation(
+                                new Vector3f(0f, 0f, 0f),
+                                new AxisAngle4f(),
+                                new Vector3f(1f, 1f, 1f),
+                                new AxisAngle4f()));
                 next.put(point, display.getUniqueId());
             } catch (RuntimeException ignored) {
                 // skip this cell
@@ -296,23 +289,19 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
         List<BlockPosition> points = plan(region);
         Map<BlockPosition, UUID> next = retain(actor, mode, points);
 
+        BlockPosition source = region.min();
         for (BlockPosition point : points) {
             if (next.containsKey(point)) {
                 continue;
             }
             Location location = new Location(world, point.x(), point.y(), point.z());
             try {
-                BlockDisplay display = world.spawn(location, BlockDisplay.class, entity -> {
-                    entity.setBlock(data);
-                    entity.setPersistent(false);
-                    entity.setTransformation(new Transformation(
-                            new Vector3f(0.05f, 0.05f, 0.05f),
-                            new AxisAngle4f(),
-                            new Vector3f(0.9f, 0.9f, 0.9f),
-                            new AxisAngle4f()));
-                    entity.setVisibleByDefault(false);
-                });
-                player.showEntity(plugin, display);
+                BlockDisplay display = spawnAnimatedBlockDisplay(
+                        world, player, location, source, data, new Transformation(
+                                new Vector3f(0.05f, 0.05f, 0.05f),
+                                new AxisAngle4f(),
+                                new Vector3f(0.9f, 0.9f, 0.9f),
+                                new AxisAngle4f()));
                 next.put(point, display.getUniqueId());
             } catch (RuntimeException ignored) {
                 // fall back to particle for this point
@@ -454,6 +443,44 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
             stand.setArms(false);
             stand.setItem(EquipmentSlot.HEAD, new ItemStack(Material.LIGHT_BLUE_STAINED_GLASS));
         });
+    }
+    private BlockDisplay spawnAnimatedBlockDisplay(
+            World world,
+            Player player,
+            Location target,
+            BlockPosition source,
+            BlockData data,
+            Transformation transform) {
+        AtomicReference<Transformation> finalTransform = new AtomicReference<>();
+        BlockDisplay entity = world.spawn(target, BlockDisplay.class, e -> {
+            e.setBlock(data);
+            e.setPersistent(false);
+            e.setInterpolationDuration(10);
+            e.setInterpolationDelay(0);
+            e.setVisibleByDefault(false);
+            e.setTransformation(transform);
+            finalTransform.set(e.getTransformation());
+            e.setTransformation(translate(finalTransform.get(), source, target));
+        });
+        player.showEntity(plugin, entity);
+        server.getScheduler().runTaskLater(plugin, () -> {
+            if (entity.isValid()) {
+                entity.setTransformation(finalTransform.get());
+            }
+        }, 1L);
+        return entity;
+    }
+
+    private static Transformation translate(Transformation t, BlockPosition source, Location target) {
+        Vector3f offset = new Vector3f(
+                source.x() - (float) target.getX(),
+                source.y() - (float) target.getY(),
+                source.z() - (float) target.getZ());
+        return new Transformation(
+                new Vector3f(t.getTranslation()).add(offset),
+                t.getLeftRotation(),
+                t.getScale(),
+                t.getRightRotation());
     }
 
     private static void spawnParticle(Player player, Location location) {
