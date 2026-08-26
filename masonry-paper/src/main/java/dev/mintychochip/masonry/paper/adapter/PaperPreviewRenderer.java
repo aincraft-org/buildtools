@@ -350,6 +350,7 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
                     entity.setGlowing(true);
                     entity.setSilent(true);
                     entity.setAI(false);
+                    entity.setNoPhysics(true);
                     entity.setCollidable(false);
                     entity.setInvulnerable(true);
                     entity.setGravity(false);
