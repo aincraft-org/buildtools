@@ -69,11 +69,16 @@ public final class MasonryPlugin extends JavaPlugin implements Listener {
                 toolRegistry, history, new OperationGuard(limits), new PaperPermissionService(getServer()));
 
         Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
-        Team existing = scoreboard.getTeam("masonry_preview");
-        if (existing != null) {
-            existing.unregister();
+        String name = "masonry_preview";
+        int i = 0;
+        while (scoreboard.getTeam(name) != null && i < 10) {
+            name = "masonry_preview" + i;
+            i++;
         }
-        this.previewTeam = scoreboard.registerNewTeam("masonry_preview");
+        while (scoreboard.getTeam(name) != null) {
+            name = "masonry_" + Long.toHexString(System.nanoTime()).substring(0, 8);
+        }
+        this.previewTeam = scoreboard.registerNewTeam(name);
         this.previewTeam.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
         this.previewTeam.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.NEVER);
         this.previewTeam.setCanSeeFriendlyInvisibles(false);

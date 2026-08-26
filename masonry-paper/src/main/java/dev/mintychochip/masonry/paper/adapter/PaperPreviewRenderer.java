@@ -55,6 +55,7 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
     private final PlayerSessionStore sessions;
     private final Map<ActorId, Map<BlockPosition, UUID>> spawned = new HashMap<>();
     private final Map<ActorId, PreviewMode> shownModes = new HashMap<>();
+    private final Map<ActorId, CuboidSelection> previousRegions = new HashMap<>();
     private final Team previewTeam;
 
     public PaperPreviewRenderer(JavaPlugin plugin, PlayerSessionStore sessions, Team previewTeam) {
@@ -159,6 +160,7 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
     private void reset(ActorId actor) {
         Map<BlockPosition, UUID> previous = spawned.remove(actor);
         shownModes.remove(actor);
+        previousRegions.remove(actor);
         if (previous == null) {
             return;
         }
@@ -288,14 +290,14 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
         BlockData data = server.createBlockData(block);
         List<BlockPosition> points = plan(region);
         Map<BlockPosition, UUID> next = retain(actor, mode, points);
-
-        BlockPosition source = region.min();
+        CuboidSelection previous = previousRegions.get(actor);
         for (BlockPosition point : points) {
             if (next.containsKey(point)) {
                 continue;
             }
             Location location = new Location(world, point.x(), point.y(), point.z());
             try {
+                BlockPosition source = previous == null ? region.min() : clampToRegion(point, previous);
                 BlockDisplay display = spawnAnimatedBlockDisplay(
                         world, player, location, source, data, new Transformation(
                                 new Vector3f(0.05f, 0.05f, 0.05f),
@@ -310,8 +312,15 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
         }
         spawned.put(actor, next);
         shownModes.put(actor, mode);
+        previousRegions.put(actor, region);
     }
 
+    private static BlockPosition clampToRegion(BlockPosition point, CuboidSelection region) {
+        int x = Math.max(region.min().x(), Math.min(region.max().x(), point.x()));
+        int y = Math.max(region.min().y(), Math.min(region.max().y(), point.y()));
+        int z = Math.max(region.min().z(), Math.min(region.max().z(), point.z()));
+        return new BlockPosition(point.worldId(), x, y, z);
+    }
     private void showParticles(ActorId actor, CuboidSelection region, World world, Player player) {
         List<BlockPosition> points = plan(region);
         Map<BlockPosition, UUID> next = retain(actor, PreviewMode.PARTICLE, List.of());
@@ -321,6 +330,7 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
         spawned.put(actor, next);
         shownModes.put(actor, PreviewMode.PARTICLE);
     }
+
 
     /**
      * Renders the selection as client-side invisible, glowing shulker boxes along the outline
