@@ -379,7 +379,7 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
                     player.showEntity(plugin, display);
                     next.put(point, display.getUniqueId());
                 } else {
-                    BlockPosition source = previousRegion == null ? clampTowardsPos1(point, region, region.pos1()) : clampTowardsPos1(point, previousRegion, region.pos1());
+                    BlockPosition source = previousRegion == null ? region.min() : clampToRegion(point, previousRegion);
                     BlockDisplay display = spawnAnimatedBlockDisplay(
                             world, player, location, source, data, new Transformation(
                                     new Vector3f(0.05f, 0.05f, 0.05f),
@@ -433,39 +433,101 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
      * with a glow color that traces the region boundary.
      */
     private void showShulkerOutline(ActorId actor, CuboidSelection region, World world, Player player) {
+        // SHULKER preview was a living Shulker entity with a 1-block hitbox that still
+        // collides despite NoPhysics/Collidable/team. Replace with non-collidable BlockDisplay
+        // to guarantee walk-through. Visual remains an outline; no collision.
         List<BlockPosition> points = plan(region);
-        Map<BlockPosition, UUID> next = retain(actor, PreviewMode.SHULKER, points);
-
+        Map<BlockPosition, UUID> previous = spawned.get(actor);
+        PreviewMode previousMode = shownModes.get(actor);
+        boolean animate = sessions.session(actor).previewAnimation();
+        Map<BlockPosition, UUID> next;
+        if (previous == null || previousMode != PreviewMode.SHULKER) {
+            if (previous != null) {
+                reset(actor);
+            }
+            next = new HashMap<>();
+        } else {
+            next = new HashMap<>();
+            for (BlockPosition position : points) {
+                UUID existing = previous.get(position);
+                if (existing != null && server.getEntity(existing) != null) {
+                    next.put(position, existing);
+                }
+            }
+            for (Map.Entry<BlockPosition, UUID> entry : previous.entrySet()) {
+                if (next.containsKey(entry.getKey())) {
+                    continue;
+                }
+                Entity entity = server.getEntity(entry.getValue());
+                if (entity instanceof BlockDisplay display && entity.isValid()) {
+                    BlockPosition oldPos = entry.getKey();
+                    BlockPosition target = clampToRegion(oldPos, region);
+                    Location oldLoc = new Location(world, oldPos.x(), oldPos.y(), oldPos.z());
+                    try {
+                        if (!animate) {
+                            previewTeam.removeEntity(display);
+                            display.remove();
+                        } else {
+                            int duration = durationFor(oldPos, target);
+                            display.setInterpolationDuration(duration);
+                            display.setInterpolationDelay(0);
+                            Transformation current = display.getTransformation();
+                            display.setTransformation(translate(current, target, oldLoc));
+                            server.getScheduler().runTaskLater(plugin, () -> {
+                                if (display.isValid()) {
+                                    previewTeam.removeEntity(display);
+                                    display.remove();
+                                }
+                            }, duration + 1L);
+                        }
+                    } catch (RuntimeException ignored) {
+                        previewTeam.removeEntity(entity);
+                        entity.remove();
+                    }
+                } else if (entity != null) {
+                    previewTeam.removeEntity(entity);
+                    entity.remove();
+                }
+            }
+        }
+        CuboidSelection previousRegion = previousRegions.get(actor);
+        BlockData shulkerData = server.createBlockData("minecraft:white_shulker_box");
         for (BlockPosition point : points) {
             if (next.containsKey(point)) {
                 continue;
             }
-            // world.spawn places the entity by its feet; a shulker is 1.0 tall, so its base
-            // must rest at point.y() for it to fill the block cell (x/z center on the block).
-            Location location = new Location(world, point.x() + 0.5, point.y(), point.z() + 0.5);
+            Location location = new Location(world, point.x(), point.y(), point.z());
             try {
-                Shulker shulker = world.spawn(location, Shulker.class, entity -> {
-                    entity.setInvisible(true);
-                    entity.setGlowing(true);
-                    entity.setSilent(true);
-                    entity.setAI(false);
-                    entity.setNoPhysics(true);
-                    entity.setCollidable(false);
-                    entity.setInvulnerable(true);
-                    entity.setGravity(false);
-                    entity.setPersistent(false);
-                    entity.setVisibleByDefault(false);
-                });
-                previewTeam.addEntity(shulker);
-                player.showEntity(plugin, shulker);
-                next.put(point, shulker.getUniqueId());
+                if (!animate) {
+                    BlockDisplay display = world.spawn(location, BlockDisplay.class, e -> {
+                        e.setBlock(shulkerData);
+                        e.setPersistent(false);
+                        e.setTransformation(new Transformation(
+                                new Vector3f(0.05f, 0.05f, 0.05f),
+                                new AxisAngle4f(),
+                                new Vector3f(0.9f, 0.9f, 0.9f),
+                                new AxisAngle4f()));
+                        e.setVisibleByDefault(false);
+                    });
+                    player.showEntity(plugin, display);
+                    next.put(point, display.getUniqueId());
+                } else {
+                    BlockPosition source = previousRegion == null ? region.min() : clampToRegion(point, previousRegion);
+                    BlockDisplay display = spawnAnimatedBlockDisplay(
+                            world, player, location, source, shulkerData, new Transformation(
+                                    new Vector3f(0.05f, 0.05f, 0.05f),
+                                    new AxisAngle4f(),
+                                    new Vector3f(0.9f, 0.9f, 0.9f),
+                                    new AxisAngle4f()));
+                    next.put(point, display.getUniqueId());
+                }
             } catch (RuntimeException ignored) {
-                // fall back to particle for this point
                 spawnParticle(player, new Location(world, point.x() + 0.5, point.y() + 0.5, point.z() + 0.5));
             }
         }
         spawned.put(actor, next);
         shownModes.put(actor, PreviewMode.SHULKER);
+        previousRegions.put(actor, region);
     }
 
     private void showExperimental(ActorId actor, CuboidSelection region, World world, Player player, Experimental kind) {
