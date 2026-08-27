@@ -49,7 +49,8 @@ import org.bukkit.scoreboard.Team;
  */
 public final class PaperPreviewRenderer implements PreviewRenderer {
     static final int MAX_DISPLAYS = PreviewGeometry.DEFAULT_MAX_DISPLAYS;
-
+    private static final int BASE_INTERPOLATION_TICKS = 2;
+    private static final int MAX_INTERPOLATION_TICKS = 6;
     private final JavaPlugin plugin;
     private final Server server;
     private final PlayerSessionStore sessions;
@@ -131,12 +132,28 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
             Location location = new Location(world, point.x(), point.y(), point.z());
             try {
                 BlockData data = server.createBlockData(PaperBlockStates.toBukkitString(state));
-                BlockDisplay display = spawnAnimatedBlockDisplay(
-                        world, player, location, origin, data, new Transformation(
+                boolean animate = sessions.session(actor).previewAnimation();
+                BlockDisplay display;
+                if (!animate) {
+                    display = world.spawn(location, BlockDisplay.class, e -> {
+                        e.setBlock(data);
+                        e.setPersistent(false);
+                        e.setTransformation(new Transformation(
                                 new Vector3f(0f, 0f, 0f),
                                 new AxisAngle4f(),
                                 new Vector3f(1f, 1f, 1f),
                                 new AxisAngle4f()));
+                        e.setVisibleByDefault(false);
+                    });
+                    player.showEntity(plugin, display);
+                } else {
+                    display = spawnAnimatedBlockDisplay(
+                            world, player, location, origin, data, new Transformation(
+                                    new Vector3f(0f, 0f, 0f),
+                                    new AxisAngle4f(),
+                                    new Vector3f(1f, 1f, 1f),
+                                    new AxisAngle4f()));
+                }
                 next.put(point, display.getUniqueId());
             } catch (RuntimeException ignored) {
                 // skip this cell
@@ -280,7 +297,6 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
         spawned.put(actor, ids);
         shownModes.put(actor, mode);
     }
-
     private void showBlockDisplays(ActorId actor, CuboidSelection region, World world, Player player, PreviewMode mode) {
         String block = switch (mode) {
             case BLOCK_TINTED -> "minecraft:tinted_glass";
@@ -289,22 +305,89 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
         };
         BlockData data = server.createBlockData(block);
         List<BlockPosition> points = plan(region);
-        Map<BlockPosition, UUID> next = retain(actor, mode, points);
-        CuboidSelection previous = previousRegions.get(actor);
+        Map<BlockPosition, UUID> previous = spawned.get(actor);
+        PreviewMode previousMode = shownModes.get(actor);
+        boolean animate = sessions.session(actor).previewAnimation();
+        Map<BlockPosition, UUID> next;
+        if (previous == null || previousMode != mode) {
+            if (previous != null) {
+                reset(actor);
+            }
+            next = new HashMap<>();
+        } else {
+            next = new HashMap<>();
+            for (BlockPosition position : points) {
+                UUID existing = previous.get(position);
+                if (existing != null && server.getEntity(existing) != null) {
+                    next.put(position, existing);
+                }
+            }
+            for (Map.Entry<BlockPosition, UUID> entry : previous.entrySet()) {
+                if (next.containsKey(entry.getKey())) {
+                    continue;
+                }
+                Entity entity = server.getEntity(entry.getValue());
+                if (entity instanceof BlockDisplay display && entity.isValid()) {
+                    BlockPosition oldPos = entry.getKey();
+                    BlockPosition target = clampToRegion(oldPos, region);
+                    Location oldLoc = new Location(world, oldPos.x(), oldPos.y(), oldPos.z());
+                    try {
+                        if (!animate) {
+                            previewTeam.removeEntity(display);
+                            display.remove();
+                        } else {
+                            int duration = durationFor(oldPos, target);
+                            display.setInterpolationDuration(duration);
+                            display.setInterpolationDelay(0);
+                            Transformation current = display.getTransformation();
+                            display.setTransformation(translate(current, target, oldLoc));
+                            server.getScheduler().runTaskLater(plugin, () -> {
+                                if (display.isValid()) {
+                                    previewTeam.removeEntity(display);
+                                    display.remove();
+                                }
+                            }, duration + 1L);
+                        }
+                    } catch (RuntimeException ignored) {
+                        previewTeam.removeEntity(entity);
+                        entity.remove();
+                    }
+                } else if (entity != null) {
+                    previewTeam.removeEntity(entity);
+                    entity.remove();
+                }
+            }
+        }
+        CuboidSelection previousRegion = previousRegions.get(actor);
         for (BlockPosition point : points) {
             if (next.containsKey(point)) {
                 continue;
             }
             Location location = new Location(world, point.x(), point.y(), point.z());
             try {
-                BlockPosition source = previous == null ? region.min() : clampToRegion(point, previous);
-                BlockDisplay display = spawnAnimatedBlockDisplay(
-                        world, player, location, source, data, new Transformation(
+                if (!animate) {
+                    BlockDisplay display = world.spawn(location, BlockDisplay.class, e -> {
+                        e.setBlock(data);
+                        e.setPersistent(false);
+                        e.setTransformation(new Transformation(
                                 new Vector3f(0.05f, 0.05f, 0.05f),
                                 new AxisAngle4f(),
                                 new Vector3f(0.9f, 0.9f, 0.9f),
                                 new AxisAngle4f()));
-                next.put(point, display.getUniqueId());
+                        e.setVisibleByDefault(false);
+                    });
+                    player.showEntity(plugin, display);
+                    next.put(point, display.getUniqueId());
+                } else {
+                    BlockPosition source = previousRegion == null ? clampTowardsPos1(point, region, region.pos1()) : clampTowardsPos1(point, previousRegion, region.pos1());
+                    BlockDisplay display = spawnAnimatedBlockDisplay(
+                            world, player, location, source, data, new Transformation(
+                                    new Vector3f(0.05f, 0.05f, 0.05f),
+                                    new AxisAngle4f(),
+                                    new Vector3f(0.9f, 0.9f, 0.9f),
+                                    new AxisAngle4f()));
+                    next.put(point, display.getUniqueId());
+                }
             } catch (RuntimeException ignored) {
                 // fall back to particle for this point
                 spawnParticle(player, new Location(world, point.x() + 0.5, point.y() + 0.5, point.z() + 0.5));
@@ -320,6 +403,18 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
         int y = Math.max(region.min().y(), Math.min(region.max().y(), point.y()));
         int z = Math.max(region.min().z(), Math.min(region.max().z(), point.z()));
         return new BlockPosition(point.worldId(), x, y, z);
+    }
+
+    private static BlockPosition clampTowardsPos1(BlockPosition point, CuboidSelection region, BlockPosition pos1) {
+        // Edge of region nearest to pos1, preserving point's coordinates where inside
+        int rxMin = region.min().x(), rxMax = region.max().x();
+        int ryMin = region.min().y(), ryMax = region.max().y();
+        int rzMin = region.min().z(), rzMax = region.max().z();
+        int x = point.x(), y = point.y(), z = point.z();
+        int nx = (x >= rxMin && x <= rxMax) ? x : (Math.abs(pos1.x() - rxMin) <= Math.abs(pos1.x() - rxMax) ? rxMin : rxMax);
+        int ny = (y >= ryMin && y <= ryMax) ? y : (Math.abs(pos1.y() - ryMin) <= Math.abs(pos1.y() - ryMax) ? ryMin : ryMax);
+        int nz = (z >= rzMin && z <= rzMax) ? z : (Math.abs(pos1.z() - rzMin) <= Math.abs(pos1.z() - rzMax) ? rzMin : rzMax);
+        return new BlockPosition(point.worldId(), nx, ny, nz);
     }
     private void showParticles(ActorId actor, CuboidSelection region, World world, Player player) {
         List<BlockPosition> points = plan(region);
@@ -462,10 +557,11 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
             BlockData data,
             Transformation transform) {
         AtomicReference<Transformation> finalTransform = new AtomicReference<>();
+        int duration = durationFor(source, target);
         BlockDisplay entity = world.spawn(target, BlockDisplay.class, e -> {
             e.setBlock(data);
             e.setPersistent(false);
-            e.setInterpolationDuration(10);
+            e.setInterpolationDuration(duration);
             e.setInterpolationDelay(0);
             e.setVisibleByDefault(false);
             e.setTransformation(transform);
@@ -479,6 +575,22 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
             }
         }, 1L);
         return entity;
+    }
+
+    private static int durationFor(BlockPosition source, Location target) {
+        int dx = Math.abs(source.x() - (int) target.getX());
+        int dy = Math.abs(source.y() - (int) target.getY());
+        int dz = Math.abs(source.z() - (int) target.getZ());
+        int steps = Math.max(dx, Math.max(dy, dz));
+        return Math.min(MAX_INTERPOLATION_TICKS, BASE_INTERPOLATION_TICKS + (steps + 1) / 2);
+    }
+
+    private static int durationFor(BlockPosition source, BlockPosition target) {
+        int dx = Math.abs(source.x() - target.x());
+        int dy = Math.abs(source.y() - target.y());
+        int dz = Math.abs(source.z() - target.z());
+        int steps = Math.max(dx, Math.max(dy, dz));
+        return Math.min(MAX_INTERPOLATION_TICKS, BASE_INTERPOLATION_TICKS + (steps + 1) / 2);
     }
 
     private static Transformation translate(Transformation t, BlockPosition source, Location target) {

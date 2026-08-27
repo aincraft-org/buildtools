@@ -78,7 +78,7 @@ public final class HoverPreviewDriver implements Runnable {
                     || session.mode() == dev.mintychochip.masonry.common.session.ToolMode.COPY
                     || session.mode() == dev.mintychochip.masonry.common.session.ToolMode.CUT;
             if (pasteOrMove && session.clipboard().isPresent() && placement != null) {
-                String signature = session.mode() + "|ghost|" + placement;
+                String signature = session.mode() + "|ghost|" + placement + "|" + session.previewAnimation();
                 if (signature.equals(shownRegions.put(player.getUniqueId(), signature))) {
                     continue;
                 }
@@ -92,7 +92,7 @@ public final class HoverPreviewDriver implements Runnable {
                 continue;
             }
             CuboidSelection region = new CuboidSelection(pos1, target);
-            String signature = session.mode() + "|" + region.min() + "|" + region.max();
+            String signature = session.mode() + "|" + region.min() + "|" + region.max() + "|" + session.previewAnimation();
             if (signature.equals(shownRegions.put(player.getUniqueId(), signature))) {
                 continue;
             }

@@ -68,6 +68,7 @@ public final class MasonryBrigadierCommand {
         root.then(blueprint("blueprint"));
         root.then(blueprint("bp"));
         root.then(previewMode());
+        root.then(animation());
 
         return root.build();
     }
@@ -117,6 +118,17 @@ public final class MasonryBrigadierCommand {
                         .executes(ctx -> execute(ctx, List.of(
                                 "previewmode",
                                 StringArgumentType.getString(ctx, "mode")))));
+    }
+
+    private LiteralArgumentBuilder<CommandSourceStack> animation() {
+        return Commands.literal("animation")
+                .executes(ctx -> execute(ctx, List.of("animation")))
+                .then(Commands.argument("state", StringArgumentType.word())
+                        .suggests((ctx, b) -> {
+                            for (String s : List.of("on", "off", "toggle")) b.suggest(s);
+                            return b.buildFuture();
+                        })
+                        .executes(ctx -> execute(ctx, List.of("animation", StringArgumentType.getString(ctx, "state")))));
     }
 
     private int execute(CommandContext<CommandSourceStack> ctx, List<String> args) {

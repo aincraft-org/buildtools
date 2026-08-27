@@ -68,7 +68,7 @@ public final class MasonryCommands {
     public CommandResult execute(CommandContext context) {
         Objects.requireNonNull(context, "context");
         if (context.arguments().isEmpty()) {
-            return CommandResult.fail("Usage: /masonry <pos1|pos2|replace|fill|survival_fill|copy|paste|undo|redo|blueprint|wand|previewmode>");
+            return CommandResult.fail("Usage: /masonry <pos1|pos2|replace|fill|survival_fill|copy|paste|undo|redo|blueprint|wand|previewmode|animation>");
         }
         String command = context.argument(0).toLowerCase();
         return switch (command) {
@@ -86,6 +86,7 @@ public final class MasonryCommands {
             case "redo" -> redo(context);
             case "blueprint", "bp" -> blueprint(context);
             case "previewmode" -> previewMode(context);
+            case "animation", "anim" -> previewAnimation(context);
             default -> CommandResult.fail("Unknown subcommand: " + command);
         };
     }
@@ -353,5 +354,23 @@ public final class MasonryCommands {
         previews.clear(context.actorId());
         session.selection().ifPresent(selection -> previews.showSelection(context.actorId(), selection));
         return CommandResult.ok("Preview mode: " + mode.name().toLowerCase(java.util.Locale.ROOT));
+    }
+
+    private CommandResult previewAnimation(CommandContext context) {
+        PlayerSession session = sessions.session(context.actorId());
+        if (context.arguments().size() < 2) {
+            session.setPreviewAnimation(!session.previewAnimation());
+        } else {
+            String arg = context.argument(1).toLowerCase(java.util.Locale.ROOT);
+            switch (arg) {
+                case "on", "true", "enabled", "1" -> session.setPreviewAnimation(true);
+                case "off", "false", "disabled", "0" -> session.setPreviewAnimation(false);
+                case "toggle" -> session.setPreviewAnimation(!session.previewAnimation());
+                default -> { return CommandResult.fail("Usage: /masonry animation [on|off|toggle]"); }
+            }
+        }
+        previews.clear(context.actorId());
+        session.selection().ifPresent(selection -> previews.showSelection(context.actorId(), selection));
+        return CommandResult.ok("Preview animation: " + (session.previewAnimation() ? "on" : "off"));
     }
 }

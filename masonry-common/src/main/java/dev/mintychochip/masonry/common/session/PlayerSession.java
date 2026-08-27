@@ -18,9 +18,9 @@ public final class PlayerSession {
     private Clipboard clipboard;
     private ToolMode mode = ToolMode.FILL;
     private PreviewMode previewMode = PreviewMode.BLOCK_LIGHT_BLUE;
+    private boolean previewAnimation = true;
     private String lastTool;
     private Map<String, String> lastArgs = Map.of();
-
     /** @return first corner if set */
     public Optional<BlockPosition> pos1() {
         return Optional.ofNullable(pos1);
@@ -85,7 +85,16 @@ public final class PlayerSession {
         this.previewMode = Objects.requireNonNull(previewMode, "previewMode");
     }
 
-    /** @return last executed tool name, or {@code null} if none yet */
+    /** @return whether block-display preview animation is enabled */
+    public boolean previewAnimation() {
+        return previewAnimation;
+    }
+
+    /** @param previewAnimation whether to animate preview block displays */
+    public void setPreviewAnimation(boolean previewAnimation) {
+        this.previewAnimation = previewAnimation;
+    }
+
     public String lastTool() {
         return lastTool;
     }
