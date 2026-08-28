@@ -4,7 +4,10 @@ main: dev.mintychochip.masonry.paper.MasonryPlugin
 api-version: "26.2"
 authors:
   - mintychochip
-description: Survival-friendly building assistant
+softdepend:
+  - FastAsyncWorldEdit
+  - WorldEdit
+  - WorldGuard
 commands:
   masonry:
     description: Masonry command root

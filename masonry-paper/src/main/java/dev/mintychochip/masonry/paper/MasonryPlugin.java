@@ -22,8 +22,8 @@ import dev.mintychochip.masonry.paper.adapter.PaperPermissionService;
 import dev.mintychochip.masonry.paper.adapter.PaperPreviewRenderer;
 import dev.mintychochip.masonry.paper.adapter.PaperSurvivalTransaction;
 import dev.mintychochip.masonry.paper.adapter.PaperTaskScheduler;
-import dev.mintychochip.masonry.paper.adapter.PaperWorldAccess;
 import dev.mintychochip.masonry.paper.command.MasonryBrigadierCommand;
+import dev.mintychochip.masonry.paper.integration.MasonryWorldAccess;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.plugin.lifecycle.event.LifecycleEventManager;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
@@ -32,11 +32,11 @@ import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
@@ -50,7 +50,7 @@ public final class MasonryPlugin extends JavaPlugin implements Listener {
     private ToolExecutor toolExecutor;
     private OperationHistory history;
     private PaperPreviewRenderer previewRenderer;
-    private PaperWorldAccess worldAccess;
+    private MasonryWorldAccess worldAccess;
     private PaperSurvivalTransaction survivalTransaction;
     private PaperTaskScheduler taskScheduler;
     private HoverPreviewDriver hoverPreviews;
@@ -89,7 +89,7 @@ public final class MasonryPlugin extends JavaPlugin implements Listener {
         this.previewTeam.setCanSeeFriendlyInvisibles(false);
 
         this.previewRenderer = new PaperPreviewRenderer(this, sessions, previewTeam);
-        this.worldAccess = new PaperWorldAccess(getServer());
+        this.worldAccess = new MasonryWorldAccess(getServer(), getLogger());
         this.survivalTransaction = new PaperSurvivalTransaction(getServer());
         this.taskScheduler = new PaperTaskScheduler(this);
         this.hoverPreviews = new HoverPreviewDriver(this, sessions, limits, previewRenderer);
@@ -148,6 +148,11 @@ public final class MasonryPlugin extends JavaPlugin implements Listener {
         }
         if (sessions != null) {
             sessions.remove(actor);
+        }
+        if (hoverPreviews != null) {
+            hoverPreviews.forget(actor.value());
+        }
+    }
 
     @EventHandler
     public void onTeleport(PlayerTeleportEvent event) {
@@ -183,10 +188,5 @@ public final class MasonryPlugin extends JavaPlugin implements Listener {
                 previewRenderer.resend(new ActorId(playerId));
             }
         });
-    }
-        }
-        if (hoverPreviews != null) {
-            hoverPreviews.forget(actor.value());
-        }
     }
 }
