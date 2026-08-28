@@ -1,7 +1,7 @@
 # Tools — Living Spec
 
 > Status: active
-> Last updated: 2026-08-19
+> Last updated: 2026-08-27
 > Owners:
 
 ## Intent
@@ -36,7 +36,7 @@ Provide a consistent, extensible set of building operations that all share the s
 
 - Define `Tool` interface: `preview(Player, args)`, `validate(Player, args)`, `execute(Player, args)`, `undo(Player, record)`.
 - Commands map to tools: `/bt replace <from> <to>`, `/bt fill <block>`, `/bt copy`, `/bt paste`.
-- Previews re-use the selection rendering system with bounded aggregated outlines or capped `BlockDisplay` entities; never render one display entity per affected block for large operations.
+- Previews re-use the selection rendering system with complete outer faces sent as per-player fake block packets or particles; enforce the surface packet budget and never send one fake block per volume block.
 - Large operations are split into chunk tasks to avoid tick lag.
 - Each player keeps an undo stack of operation records; records store block diffs (old state, new state, position).
 - Tool results are translated into survival transactions.

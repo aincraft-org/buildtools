@@ -1,7 +1,7 @@
 # Selection — Living Spec
 
 > Status: active
-> Last updated: 2026-08-19
+> Last updated: 2026-08-27
 > Owners:
 
 ## Intent
@@ -34,14 +34,14 @@ Give players a precise, visible way to define the region they are about to edit.
 - Selection state lives in a per-player `PlayerSession`.
 - Support two-point (cuboid) selection via left/right click or commands (`/bt pos1`, `/bt pos2`).
 - The server raycasts the initial target and validates it against `interaction_distance`.
-- Render selection boundaries with aggregated outlines or a capped number of `BlockDisplay` entities; do not create one display entity per block in large selections.
-- Update or remove preview entities when the selection changes or the player logs out.
+- Render selection boundaries as complete outer faces with per-player fake block packets or particles; do not send more than the surface packet budget, and use the sparse outline fallback for oversized regions.
+- Update or restore fake block packets when the selection changes, chunks reload, the player changes worlds, teleports, or logs out.
 - Serialize selection as two `BlockVector3`s.
 
 ## Current
 
 - [x] Two-point cuboid selection
-- [x] Visual boundary with block displays / particles
+- [x] Visual boundary with complete per-player fake faces / particles
 - [x] Per-player session storage
 
 ## Next
@@ -62,7 +62,9 @@ Give players a precise, visible way to define the region they are about to edit.
 
 | Date | Decision | Why |
 |------|----------|-----|
-| 2026-08-16 | Block displays with particle fallback | Best visual clarity on modern Paper |
+| 2026-08-16 | Per-player fake block packets with particle fallback | Best visual clarity without server-side display entities |
+| 2026-08-27 | Selection previews use `Player#sendBlockChange` with tracked originals | The outline is visible only to its owner and never creates server-ticked entities |
+| 2026-08-27 | Complete face coverage is bounded by a 32768-position packet budget | Full faces are clear for normal selections while oversized regions degrade safely |
 | 2026-08-16 | Cuboid first, other shapes later | Most common use case, simplest invariant set |
 | 2026-08-17 | Interaction distance and selection extent are separate limits | A player can select a bounded remote region without granting unlimited reach |
 | 2026-08-17 | Large selection previews use bounded aggregated rendering | Keeps the server responsive and avoids one entity per block |

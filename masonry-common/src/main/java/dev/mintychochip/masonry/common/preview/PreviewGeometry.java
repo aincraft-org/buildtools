@@ -9,11 +9,14 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Bounded cuboid outline samples for BlockDisplay / particle previews.
+ * Bounded cuboid outline and complete-surface samples for client-side fake-block / particle
+ * previews.
  */
 public final class PreviewGeometry {
-    /** Default cap so large selections never spawn one entity per block. */
+    /** Default cap for sparse outline samples. */
     public static final int DEFAULT_MAX_DISPLAYS = 256;
+    /** Default cap for complete surface samples. */
+    public static final int DEFAULT_MAX_SURFACE_BLOCKS = 32768;
 
     private PreviewGeometry() {}
 
@@ -123,6 +126,66 @@ public final class PreviewGeometry {
             return List.copyOf(new ArrayList<>(points).subList(0, maxDisplays));
         }
         return List.copyOf(points);
+    }
+    /**
+     * Complete outer surface using {@link #DEFAULT_MAX_SURFACE_BLOCKS}.
+     *
+     * @param selection cuboid
+     * @return every block on the six faces
+     * @throws IllegalArgumentException if the surface exceeds the default cap
+     */
+    public static List<BlockPosition> surface(CuboidSelection selection) {
+        return surface(selection, DEFAULT_MAX_SURFACE_BLOCKS);
+    }
+
+    /**
+     * Complete outer surface with an explicit packet budget. Duplicate edge and corner positions
+     * are returned once.
+     *
+     * @param selection cuboid
+     * @param maxSurfaceBlocks hard cap on returned positions
+     * @return every block on the six faces
+     * @throws IllegalArgumentException if the budget is non-positive or the surface exceeds it
+     */
+    public static List<BlockPosition> surface(CuboidSelection selection, int maxSurfaceBlocks) {
+        Objects.requireNonNull(selection, "selection");
+        if (maxSurfaceBlocks <= 0) {
+            throw new IllegalArgumentException("maxSurfaceBlocks must be positive");
+        }
+        BlockPosition min = selection.min();
+        BlockPosition max = selection.max();
+        Set<BlockPosition> points = new LinkedHashSet<>();
+        for (int x = min.x(); x <= max.x(); x++) {
+            for (int z = min.z(); z <= max.z(); z++) {
+                addSurfacePoint(points, selection.worldId(), x, min.y(), z, maxSurfaceBlocks);
+                addSurfacePoint(points, selection.worldId(), x, max.y(), z, maxSurfaceBlocks);
+            }
+        }
+        for (int x = min.x(); x <= max.x(); x++) {
+            for (int y = min.y(); y <= max.y(); y++) {
+                addSurfacePoint(points, selection.worldId(), x, y, min.z(), maxSurfaceBlocks);
+                addSurfacePoint(points, selection.worldId(), x, y, max.z(), maxSurfaceBlocks);
+            }
+        }
+        for (int y = min.y(); y <= max.y(); y++) {
+            for (int z = min.z(); z <= max.z(); z++) {
+                addSurfacePoint(points, selection.worldId(), min.x(), y, z, maxSurfaceBlocks);
+                addSurfacePoint(points, selection.worldId(), max.x(), y, z, maxSurfaceBlocks);
+            }
+        }
+        return List.copyOf(points);
+    }
+
+    private static void addSurfacePoint(
+            Set<BlockPosition> points,
+            String worldId,
+            int x,
+            int y,
+            int z,
+            int maxSurfaceBlocks) {
+        if (points.add(new BlockPosition(worldId, x, y, z)) && points.size() > maxSurfaceBlocks) {
+            throw new IllegalArgumentException("surface exceeds maxSurfaceBlocks: " + maxSurfaceBlocks);
+        }
     }
 
     /**

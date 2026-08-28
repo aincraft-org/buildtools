@@ -28,9 +28,14 @@ import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.plugin.lifecycle.event.LifecycleEventManager;
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import java.util.List;
+import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.entity.Player;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scoreboard.Scoreboard;
@@ -131,7 +136,7 @@ public final class MasonryPlugin extends JavaPlugin implements Listener {
     }
 
     /**
-     * Clears preview entities and session state so logout cannot leak display entities.
+     * Clears preview state and session state so logout cannot leak client-side previews.
      *
      * @param event quit
      */
@@ -143,6 +148,42 @@ public final class MasonryPlugin extends JavaPlugin implements Listener {
         }
         if (sessions != null) {
             sessions.remove(actor);
+
+    @EventHandler
+    public void onTeleport(PlayerTeleportEvent event) {
+        schedulePreviewResend(event.getPlayer().getUniqueId());
+    }
+
+    @EventHandler
+    public void onWorldChange(PlayerChangedWorldEvent event) {
+        schedulePreviewResend(event.getPlayer().getUniqueId());
+    }
+
+    @EventHandler
+    public void onChunkLoad(ChunkLoadEvent event) {
+        if (previewRenderer == null) {
+            return;
+        }
+        getServer().getScheduler().runTask(this, () -> {
+            if (previewRenderer == null) {
+                return;
+            }
+            for (Player player : getServer().getOnlinePlayers()) {
+                previewRenderer.resendChunk(new ActorId(player.getUniqueId()), event.getChunk());
+            }
+        });
+    }
+
+    private void schedulePreviewResend(UUID playerId) {
+        if (previewRenderer == null) {
+            return;
+        }
+        getServer().getScheduler().runTask(this, () -> {
+            if (previewRenderer != null) {
+                previewRenderer.resend(new ActorId(playerId));
+            }
+        });
+    }
         }
         if (hoverPreviews != null) {
             hoverPreviews.forget(actor.value());

@@ -1,6 +1,8 @@
 package dev.mintychochip.masonry.common.preview;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.mintychochip.masonry.api.selection.CuboidSelection;
@@ -10,9 +12,8 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
- * Preview geometry contract: corners always present, display cap respected, and the
- * player-facing TOP face is sampled across its interior — an edges-only ring is what made
- * large selections look hollow from above.
+ * Preview geometry contracts: sparse outlines remain capped, while complete surfaces include
+ * every outer-face block and reject an insufficient packet budget.
  */
 class PreviewGeometryTest {
 
@@ -59,5 +60,29 @@ class PreviewGeometryTest {
         assertEquals(points.size(), PreviewGeometry.outline(selection).size(), "duplicates");
         assertTrue(points.size() <= PreviewGeometry.DEFAULT_MAX_DISPLAYS,
                 "cap exceeded: " + points.size());
+    }
+
+    @Test
+    void completeSurfaceIncludesEveryOuterFaceCell() {
+        CuboidSelection selection = new CuboidSelection(
+                pos("world", 0, 64, 0), pos("world", 2, 66, 2));
+        var points = new HashSet<>(PreviewGeometry.surface(selection, 100));
+
+        assertEquals(26, points.size());
+        assertTrue(points.contains(pos("world", 1, 64, 1)));
+        assertTrue(points.contains(pos("world", 0, 65, 1)));
+        assertTrue(points.contains(pos("world", 1, 65, 0)));
+        assertTrue(points.contains(pos("world", 2, 65, 2)));
+        assertFalse(points.contains(pos("world", 1, 65, 1)));
+    }
+
+    @Test
+    void completeSurfaceRejectsAnInsufficientPacketBudget() {
+        CuboidSelection selection = new CuboidSelection(
+                pos("world", 0, 64, 0), pos("world", 9, 69, 9));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> PreviewGeometry.surface(selection, 100));
     }
 }

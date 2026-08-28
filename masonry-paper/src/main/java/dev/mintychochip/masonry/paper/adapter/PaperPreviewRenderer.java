@@ -11,14 +11,16 @@ import dev.mintychochip.masonry.api.world.BlockPosition;
 import dev.mintychochip.masonry.api.world.BlockState;
 import dev.mintychochip.masonry.common.preview.PreviewGeometry;
 import dev.mintychochip.masonry.common.session.PlayerSessionStore;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.BiConsumer;
+import java.util.function.Predicate;
+import org.bukkit.Chunk;
+import java.util.function.Function;
 import net.kyori.adventure.text.Component;
-import java.util.concurrent.atomic.AtomicReference;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -26,37 +28,31 @@ import org.bukkit.Particle;
 import org.bukkit.Server;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.Player;
 import org.bukkit.entity.ArmorStand;
-import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.ItemDisplay;
-import org.bukkit.entity.Player;
-import org.bukkit.entity.Shulker;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.util.Transformation;
-import org.joml.AxisAngle4f;
-import org.joml.Vector3f;
 import org.bukkit.scoreboard.Team;
 
 /**
- * Multi-mode preview renderer. Viable modes are translucent-glass {@link BlockDisplay},
- * six-face alpha {@link TextDisplay}, and particle outline. {@code EXPERIMENTAL_*} modes
- * are fixed-model demos that may not scale or handle true alpha as well.
+ * Multi-mode preview renderer. Block and ghost previews use per-player fake block packets via
+ * {@link Player#sendBlockChange(Location, BlockData)}; they never create server-side entities or
+ * mutate world state. Text and experimental modes retain their explicit entity-based behavior.
  */
 public final class PaperPreviewRenderer implements PreviewRenderer {
     static final int MAX_DISPLAYS = PreviewGeometry.DEFAULT_MAX_DISPLAYS;
-    private static final int BASE_INTERPOLATION_TICKS = 2;
-    private static final int MAX_INTERPOLATION_TICKS = 6;
+    static final int MAX_SURFACE_BLOCKS = PreviewGeometry.DEFAULT_MAX_SURFACE_BLOCKS;
     private final JavaPlugin plugin;
     private final Server server;
     private final PlayerSessionStore sessions;
-    private final Map<ActorId, Map<BlockPosition, UUID>> spawned = new HashMap<>();
+    private final Map<ActorId, Map<BlockPosition, UUID>> spawnedEntities = new HashMap<>();
+    private final Map<ActorId, FakeBlockTracker<BlockData>> fakeBlocks = new HashMap<>();
     private final Map<ActorId, PreviewMode> shownModes = new HashMap<>();
-    private final Map<ActorId, CuboidSelection> previousRegions = new HashMap<>();
     private final Team previewTeam;
 
     public PaperPreviewRenderer(JavaPlugin plugin, PlayerSessionStore sessions, Team previewTeam) {
@@ -67,10 +63,15 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
     }
 
     /**
-     * Plans a bounded outline for {@code selection}. Exposed for unit tests without a server.
+     * Plans a complete bounded surface for {@code selection}. Oversized surfaces fall back to
+     * the sparse outline cap rather than causing an unbounded packet burst.
      */
     public static List<BlockPosition> plan(CuboidSelection selection) {
-        return PreviewGeometry.outline(selection, MAX_DISPLAYS);
+        try {
+            return PreviewGeometry.surface(selection, MAX_SURFACE_BLOCKS);
+        } catch (IllegalArgumentException oversized) {
+            return PreviewGeometry.outline(selection, MAX_DISPLAYS);
+        }
     }
 
     @Override
@@ -102,65 +103,24 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
             reset(actor);
             return;
         }
-        List<BlockPosition> points = clipboard.blocks().keySet().stream()
-                .map(offset -> origin.offset(offset.x(), offset.y(), offset.z()))
-                .filter(position -> {
-                    BlockState state = clipboard.blocks().get(
-                            new BlockOffset(
-                                    position.x() - origin.x(),
-                                    position.y() - origin.y(),
-                                    position.z() - origin.z()));
-                    return state != null && !state.isAir();
-                })
-                .toList();
-        if (points.size() > MAX_DISPLAYS) {
-            points = points.subList(0, MAX_DISPLAYS);
-        }
-        Map<BlockPosition, UUID> next = retain(actor, PreviewMode.BLOCK_CLEAR, points);
-        for (BlockPosition point : points) {
-            if (next.containsKey(point)) {
-                continue;
-            }
-            BlockState state = clipboard.blocks().get(
-                    new BlockOffset(
-                            point.x() - origin.x(),
-                            point.y() - origin.y(),
-                            point.z() - origin.z()));
+        Map<BlockPosition, BlockData> wanted = new HashMap<>();
+        for (Map.Entry<BlockOffset, BlockState> entry : clipboard.blocks().entrySet()) {
+            BlockState state = entry.getValue();
             if (state == null || state.isAir()) {
                 continue;
             }
-            Location location = new Location(world, point.x(), point.y(), point.z());
+            if (wanted.size() >= MAX_DISPLAYS) {
+                break;
+            }
+            BlockOffset offset = entry.getKey();
+            BlockPosition point = origin.offset(offset.x(), offset.y(), offset.z());
             try {
-                BlockData data = server.createBlockData(PaperBlockStates.toBukkitString(state));
-                boolean animate = sessions.session(actor).previewAnimation();
-                BlockDisplay display;
-                if (!animate) {
-                    display = world.spawn(location, BlockDisplay.class, e -> {
-                        e.setBlock(data);
-                        e.setPersistent(false);
-                        e.setTransformation(new Transformation(
-                                new Vector3f(0f, 0f, 0f),
-                                new AxisAngle4f(),
-                                new Vector3f(1f, 1f, 1f),
-                                new AxisAngle4f()));
-                        e.setVisibleByDefault(false);
-                    });
-                    player.showEntity(plugin, display);
-                } else {
-                    display = spawnAnimatedBlockDisplay(
-                            world, player, location, origin, data, new Transformation(
-                                    new Vector3f(0f, 0f, 0f),
-                                    new AxisAngle4f(),
-                                    new Vector3f(1f, 1f, 1f),
-                                    new AxisAngle4f()));
-                }
-                next.put(point, display.getUniqueId());
+                wanted.put(point, server.createBlockData(PaperBlockStates.toBukkitString(state)));
             } catch (RuntimeException ignored) {
-                // skip this cell
+                // skip an invalid block state without aborting the rest of the ghost
             }
         }
-        spawned.put(actor, next);
-        shownModes.put(actor, PreviewMode.BLOCK_CLEAR);
+        showFakeBlocks(actor, player, world, PreviewMode.BLOCK_CLEAR, wanted);
     }
 
     @Override
@@ -168,16 +128,58 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
         Objects.requireNonNull(actor, "actor");
         reset(actor);
     }
+    /**
+     * Re-sends every active fake block to its owning player after a chunk refresh or other client
+     * resynchronization.
+     *
+     * @param actor viewer
+     */
+    public void resend(ActorId actor) {
+        Objects.requireNonNull(actor, "actor");
+        resendTracked(actor, position -> true);
+    }
 
     /**
-     * Removes every tracked entity for {@code actor} and drops its tracking state.
+     * Re-sends only fake blocks contained in {@code chunk}.
+     *
+     * @param actor viewer
+     * @param chunk refreshed chunk
+     */
+    public void resendChunk(ActorId actor, Chunk chunk) {
+        Objects.requireNonNull(actor, "actor");
+        Objects.requireNonNull(chunk, "chunk");
+        String worldId = chunk.getWorld().getName();
+        resendTracked(
+                actor,
+                position -> position.worldId().equals(worldId)
+                        && position.x() >> 4 == chunk.getX()
+                        && position.z() >> 4 == chunk.getZ());
+    }
+
+    private void resendTracked(ActorId actor, Predicate<BlockPosition> include) {
+        Player player = server.getPlayer(actor.value());
+        FakeBlockTracker<BlockData> tracker = fakeBlocks.get(actor);
+        if (player == null || tracker == null) {
+            return;
+        }
+        tracker.resend(include, (position, data) -> sendFakeBlock(player, position, data));
+    }
+
+    /**
+     * Removes tracked entity previews, restores tracked fake blocks, and drops the viewer state.
      *
      * @param actor viewer
      */
     private void reset(ActorId actor) {
-        Map<BlockPosition, UUID> previous = spawned.remove(actor);
+        Map<BlockPosition, UUID> previous = spawnedEntities.remove(actor);
+        FakeBlockTracker<BlockData> fake = fakeBlocks.remove(actor);
         shownModes.remove(actor);
-        previousRegions.remove(actor);
+        if (fake != null) {
+            Player player = server.getPlayer(actor.value());
+            if (player != null) {
+                fake.clear((position, original) -> restoreFakeBlock(player, position, original));
+            }
+        }
         if (previous == null) {
             return;
         }
@@ -189,7 +191,6 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
             }
         }
     }
-
     /**
      * Returns the surviving position→uuid map after removing entities that are no longer
      * wanted. When the preview mode changed, every previous entity is removed first.
@@ -200,12 +201,12 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
      * @return map of wanted positions that already had a display
      */
     private Map<BlockPosition, UUID> retain(ActorId actor, PreviewMode mode, List<BlockPosition> wanted) {
-        Map<BlockPosition, UUID> previous = spawned.get(actor);
-        if (previous == null) {
-            return new HashMap<>();
-        }
         if (shownModes.get(actor) != mode) {
             reset(actor);
+            return new HashMap<>();
+        }
+        Map<BlockPosition, UUID> previous = spawnedEntities.get(actor);
+        if (previous == null) {
             return new HashMap<>();
         }
         Map<BlockPosition, UUID> next = new HashMap<>();
@@ -227,6 +228,57 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
         return next;
     }
 
+    /**
+     * Applies fake block states only to {@code player}. The server world is never changed and
+     * no entity is created or ticked. Original block data is retained so every fake position can
+     * be restored when the preview changes, clears, or the player logs out.
+     */
+    private void showFakeBlocks(
+            ActorId actor,
+            Player player,
+            World world,
+            PreviewMode mode,
+            Map<BlockPosition, BlockData> wanted) {
+        if (shownModes.get(actor) != mode) {
+            reset(actor);
+        }
+        FakeBlockTracker<BlockData> tracker =
+                fakeBlocks.computeIfAbsent(actor, ignored -> new FakeBlockTracker<>());
+        tracker.show(
+                wanted,
+                position -> world.getBlockAt(position.x(), position.y(), position.z()).getBlockData().clone(),
+                (position, data) -> sendFakeBlock(player, position, data),
+                (position, original) -> restoreFakeBlock(player, position, original));
+        if (tracker.isEmpty()) {
+            fakeBlocks.remove(actor);
+        }
+        shownModes.put(actor, mode);
+    }
+
+    private void restoreFakeBlock(Player player, BlockPosition position, BlockData original) {
+        World world = server.getWorld(position.worldId());
+        if (world == null) {
+            return;
+        }
+        BlockData restore = original;
+        try {
+            restore = world.getBlockAt(position.x(), position.y(), position.z()).getBlockData();
+        } catch (RuntimeException ignored) {
+            // use the captured state when the live block cannot be read
+        }
+        try {
+            player.sendBlockChange(new Location(world, position.x(), position.y(), position.z()), restore);
+        } catch (RuntimeException ignored) {
+            // the viewer may be leaving or the chunk may have unloaded
+        }
+    }
+    private void sendFakeBlock(Player player, BlockPosition position, BlockData data) {
+        World world = server.getWorld(position.worldId());
+        if (world != null) {
+            player.sendBlockChange(new Location(world, position.x(), position.y(), position.z()), data);
+        }
+    }
+
     private void render(ActorId actor, CuboidSelection region) {
         Player player = server.getPlayer(actor.value());
         if (player == null) {
@@ -246,7 +298,7 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
             case SHULKER -> showShulkerOutline(actor, region, world, player);
             case EXPERIMENTAL_ITEM -> showExperimental(actor, region, world, player, Experimental.ITEM);
             case EXPERIMENTAL_ARMOR -> showExperimental(actor, region, world, player, Experimental.ARMOR);
-            default -> showBlockDisplays(actor, region, world, player, mode);
+            default -> showFakeBlockPreview(actor, region, world, player, mode);
         }
     }
 
@@ -294,240 +346,46 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
                 // fall through to no preview
             }
         }
-        spawned.put(actor, ids);
+        spawnedEntities.put(actor, ids);
         shownModes.put(actor, mode);
     }
-    private void showBlockDisplays(ActorId actor, CuboidSelection region, World world, Player player, PreviewMode mode) {
+    private void showFakeBlockPreview(
+            ActorId actor, CuboidSelection region, World world, Player player, PreviewMode mode) {
         String block = switch (mode) {
             case BLOCK_TINTED -> "minecraft:tinted_glass";
             case BLOCK_CLEAR -> "minecraft:glass";
             default -> "minecraft:light_blue_stained_glass";
         };
         BlockData data = server.createBlockData(block);
-        List<BlockPosition> points = plan(region);
-        Map<BlockPosition, UUID> previous = spawned.get(actor);
-        PreviewMode previousMode = shownModes.get(actor);
-        boolean animate = sessions.session(actor).previewAnimation();
-        Map<BlockPosition, UUID> next;
-        if (previous == null || previousMode != mode) {
-            if (previous != null) {
-                reset(actor);
-            }
-            next = new HashMap<>();
-        } else {
-            next = new HashMap<>();
-            for (BlockPosition position : points) {
-                UUID existing = previous.get(position);
-                if (existing != null && server.getEntity(existing) != null) {
-                    next.put(position, existing);
-                }
-            }
-            for (Map.Entry<BlockPosition, UUID> entry : previous.entrySet()) {
-                if (next.containsKey(entry.getKey())) {
-                    continue;
-                }
-                Entity entity = server.getEntity(entry.getValue());
-                if (entity instanceof BlockDisplay display && entity.isValid()) {
-                    BlockPosition oldPos = entry.getKey();
-                    BlockPosition target = clampToRegion(oldPos, region);
-                    Location oldLoc = new Location(world, oldPos.x(), oldPos.y(), oldPos.z());
-                    try {
-                        if (!animate) {
-                            previewTeam.removeEntity(display);
-                            display.remove();
-                        } else {
-                            int duration = durationFor(oldPos, target);
-                            display.setInterpolationDuration(duration);
-                            display.setInterpolationDelay(0);
-                            Transformation current = display.getTransformation();
-                            display.setTransformation(translate(current, target, oldLoc));
-                            server.getScheduler().runTaskLater(plugin, () -> {
-                                if (display.isValid()) {
-                                    previewTeam.removeEntity(display);
-                                    display.remove();
-                                }
-                            }, duration + 1L);
-                        }
-                    } catch (RuntimeException ignored) {
-                        previewTeam.removeEntity(entity);
-                        entity.remove();
-                    }
-                } else if (entity != null) {
-                    previewTeam.removeEntity(entity);
-                    entity.remove();
-                }
-            }
+        Map<BlockPosition, BlockData> wanted = new HashMap<>();
+        for (BlockPosition point : plan(region)) {
+            wanted.put(point, data);
         }
-        CuboidSelection previousRegion = previousRegions.get(actor);
-        for (BlockPosition point : points) {
-            if (next.containsKey(point)) {
-                continue;
-            }
-            Location location = new Location(world, point.x(), point.y(), point.z());
-            try {
-                if (!animate) {
-                    BlockDisplay display = world.spawn(location, BlockDisplay.class, e -> {
-                        e.setBlock(data);
-                        e.setPersistent(false);
-                        e.setTransformation(new Transformation(
-                                new Vector3f(0.05f, 0.05f, 0.05f),
-                                new AxisAngle4f(),
-                                new Vector3f(0.9f, 0.9f, 0.9f),
-                                new AxisAngle4f()));
-                        e.setVisibleByDefault(false);
-                    });
-                    player.showEntity(plugin, display);
-                    next.put(point, display.getUniqueId());
-                } else {
-                    BlockPosition source = previousRegion == null ? region.min() : clampToRegion(point, previousRegion);
-                    BlockDisplay display = spawnAnimatedBlockDisplay(
-                            world, player, location, source, data, new Transformation(
-                                    new Vector3f(0.05f, 0.05f, 0.05f),
-                                    new AxisAngle4f(),
-                                    new Vector3f(0.9f, 0.9f, 0.9f),
-                                    new AxisAngle4f()));
-                    next.put(point, display.getUniqueId());
-                }
-            } catch (RuntimeException ignored) {
-                // fall back to particle for this point
-                spawnParticle(player, new Location(world, point.x() + 0.5, point.y() + 0.5, point.z() + 0.5));
-            }
-        }
-        spawned.put(actor, next);
-        shownModes.put(actor, mode);
-        previousRegions.put(actor, region);
+        showFakeBlocks(actor, player, world, mode, wanted);
     }
 
-    private static BlockPosition clampToRegion(BlockPosition point, CuboidSelection region) {
-        int x = Math.max(region.min().x(), Math.min(region.max().x(), point.x()));
-        int y = Math.max(region.min().y(), Math.min(region.max().y(), point.y()));
-        int z = Math.max(region.min().z(), Math.min(region.max().z(), point.z()));
-        return new BlockPosition(point.worldId(), x, y, z);
-    }
-
-    private static BlockPosition clampTowardsPos1(BlockPosition point, CuboidSelection region, BlockPosition pos1) {
-        // Edge of region nearest to pos1, preserving point's coordinates where inside
-        int rxMin = region.min().x(), rxMax = region.max().x();
-        int ryMin = region.min().y(), ryMax = region.max().y();
-        int rzMin = region.min().z(), rzMax = region.max().z();
-        int x = point.x(), y = point.y(), z = point.z();
-        int nx = (x >= rxMin && x <= rxMax) ? x : (Math.abs(pos1.x() - rxMin) <= Math.abs(pos1.x() - rxMax) ? rxMin : rxMax);
-        int ny = (y >= ryMin && y <= ryMax) ? y : (Math.abs(pos1.y() - ryMin) <= Math.abs(pos1.y() - ryMax) ? ryMin : ryMax);
-        int nz = (z >= rzMin && z <= rzMax) ? z : (Math.abs(pos1.z() - rzMin) <= Math.abs(pos1.z() - rzMax) ? rzMin : rzMax);
-        return new BlockPosition(point.worldId(), nx, ny, nz);
-    }
     private void showParticles(ActorId actor, CuboidSelection region, World world, Player player) {
         List<BlockPosition> points = plan(region);
         Map<BlockPosition, UUID> next = retain(actor, PreviewMode.PARTICLE, List.of());
         for (BlockPosition point : points) {
             spawnParticle(player, new Location(world, point.x() + 0.5, point.y() + 0.5, point.z() + 0.5));
         }
-        spawned.put(actor, next);
+        spawnedEntities.put(actor, next);
         shownModes.put(actor, PreviewMode.PARTICLE);
     }
 
 
     /**
-     * Renders the selection as client-side invisible, glowing shulker boxes along the outline
-     * edges. Each shulker is spawned invisible to everyone and shown only to {@code player},
-     * with a glow color that traces the region boundary.
+     * Renders the selection as client-side fake shulker-box blocks along the outline edges.
+     * Unlike a server entity, these blocks are sent only to {@code player}.
      */
     private void showShulkerOutline(ActorId actor, CuboidSelection region, World world, Player player) {
-        // SHULKER preview was a living Shulker entity with a 1-block hitbox that still
-        // collides despite NoPhysics/Collidable/team. Replace with non-collidable BlockDisplay
-        // to guarantee walk-through. Visual remains an outline; no collision.
-        List<BlockPosition> points = plan(region);
-        Map<BlockPosition, UUID> previous = spawned.get(actor);
-        PreviewMode previousMode = shownModes.get(actor);
-        boolean animate = sessions.session(actor).previewAnimation();
-        Map<BlockPosition, UUID> next;
-        if (previous == null || previousMode != PreviewMode.SHULKER) {
-            if (previous != null) {
-                reset(actor);
-            }
-            next = new HashMap<>();
-        } else {
-            next = new HashMap<>();
-            for (BlockPosition position : points) {
-                UUID existing = previous.get(position);
-                if (existing != null && server.getEntity(existing) != null) {
-                    next.put(position, existing);
-                }
-            }
-            for (Map.Entry<BlockPosition, UUID> entry : previous.entrySet()) {
-                if (next.containsKey(entry.getKey())) {
-                    continue;
-                }
-                Entity entity = server.getEntity(entry.getValue());
-                if (entity instanceof BlockDisplay display && entity.isValid()) {
-                    BlockPosition oldPos = entry.getKey();
-                    BlockPosition target = clampToRegion(oldPos, region);
-                    Location oldLoc = new Location(world, oldPos.x(), oldPos.y(), oldPos.z());
-                    try {
-                        if (!animate) {
-                            previewTeam.removeEntity(display);
-                            display.remove();
-                        } else {
-                            int duration = durationFor(oldPos, target);
-                            display.setInterpolationDuration(duration);
-                            display.setInterpolationDelay(0);
-                            Transformation current = display.getTransformation();
-                            display.setTransformation(translate(current, target, oldLoc));
-                            server.getScheduler().runTaskLater(plugin, () -> {
-                                if (display.isValid()) {
-                                    previewTeam.removeEntity(display);
-                                    display.remove();
-                                }
-                            }, duration + 1L);
-                        }
-                    } catch (RuntimeException ignored) {
-                        previewTeam.removeEntity(entity);
-                        entity.remove();
-                    }
-                } else if (entity != null) {
-                    previewTeam.removeEntity(entity);
-                    entity.remove();
-                }
-            }
-        }
-        CuboidSelection previousRegion = previousRegions.get(actor);
         BlockData shulkerData = server.createBlockData("minecraft:white_shulker_box");
-        for (BlockPosition point : points) {
-            if (next.containsKey(point)) {
-                continue;
-            }
-            Location location = new Location(world, point.x(), point.y(), point.z());
-            try {
-                if (!animate) {
-                    BlockDisplay display = world.spawn(location, BlockDisplay.class, e -> {
-                        e.setBlock(shulkerData);
-                        e.setPersistent(false);
-                        e.setTransformation(new Transformation(
-                                new Vector3f(0.05f, 0.05f, 0.05f),
-                                new AxisAngle4f(),
-                                new Vector3f(0.9f, 0.9f, 0.9f),
-                                new AxisAngle4f()));
-                        e.setVisibleByDefault(false);
-                    });
-                    player.showEntity(plugin, display);
-                    next.put(point, display.getUniqueId());
-                } else {
-                    BlockPosition source = previousRegion == null ? region.min() : clampToRegion(point, previousRegion);
-                    BlockDisplay display = spawnAnimatedBlockDisplay(
-                            world, player, location, source, shulkerData, new Transformation(
-                                    new Vector3f(0.05f, 0.05f, 0.05f),
-                                    new AxisAngle4f(),
-                                    new Vector3f(0.9f, 0.9f, 0.9f),
-                                    new AxisAngle4f()));
-                    next.put(point, display.getUniqueId());
-                }
-            } catch (RuntimeException ignored) {
-                spawnParticle(player, new Location(world, point.x() + 0.5, point.y() + 0.5, point.z() + 0.5));
-            }
+        Map<BlockPosition, BlockData> wanted = new HashMap<>();
+        for (BlockPosition point : plan(region)) {
+            wanted.put(point, shulkerData);
         }
-        spawned.put(actor, next);
-        shownModes.put(actor, PreviewMode.SHULKER);
-        previousRegions.put(actor, region);
+        showFakeBlocks(actor, player, world, PreviewMode.SHULKER, wanted);
     }
 
     private void showExperimental(ActorId actor, CuboidSelection region, World world, Player player, Experimental kind) {
@@ -555,22 +413,10 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
                 spawnParticle(player, new Location(world, point.x() + 0.5, point.y() + 0.5, point.z() + 0.5));
             }
         }
-        spawned.put(actor, next);
+        spawnedEntities.put(actor, next);
         shownModes.put(actor, mode);
     }
 
-    private static BlockDisplay spawnBlockDisplay(World world, Location location, String block) {
-        return world.spawn(location, BlockDisplay.class, entity -> {
-            entity.setBlock(entity.getServer().createBlockData(block));
-            entity.setPersistent(false);
-            entity.setTransformation(new Transformation(
-                    new Vector3f(0.05f, 0.05f, 0.05f),
-                    new AxisAngle4f(),
-                    new Vector3f(0.9f, 0.9f, 0.9f),
-                    new AxisAngle4f()));
-            entity.setVisibleByDefault(false);
-        });
-    }
 
     private static TextDisplay spawnTextDisplay(World world, Location location, Color color) {
         return world.spawn(location, TextDisplay.class, entity -> {
@@ -611,61 +457,6 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
             stand.setItem(EquipmentSlot.HEAD, new ItemStack(Material.LIGHT_BLUE_STAINED_GLASS));
         });
     }
-    private BlockDisplay spawnAnimatedBlockDisplay(
-            World world,
-            Player player,
-            Location target,
-            BlockPosition source,
-            BlockData data,
-            Transformation transform) {
-        AtomicReference<Transformation> finalTransform = new AtomicReference<>();
-        int duration = durationFor(source, target);
-        BlockDisplay entity = world.spawn(target, BlockDisplay.class, e -> {
-            e.setBlock(data);
-            e.setPersistent(false);
-            e.setInterpolationDuration(duration);
-            e.setInterpolationDelay(0);
-            e.setVisibleByDefault(false);
-            e.setTransformation(transform);
-            finalTransform.set(e.getTransformation());
-            e.setTransformation(translate(finalTransform.get(), source, target));
-        });
-        player.showEntity(plugin, entity);
-        server.getScheduler().runTaskLater(plugin, () -> {
-            if (entity.isValid()) {
-                entity.setTransformation(finalTransform.get());
-            }
-        }, 1L);
-        return entity;
-    }
-
-    private static int durationFor(BlockPosition source, Location target) {
-        int dx = Math.abs(source.x() - (int) target.getX());
-        int dy = Math.abs(source.y() - (int) target.getY());
-        int dz = Math.abs(source.z() - (int) target.getZ());
-        int steps = Math.max(dx, Math.max(dy, dz));
-        return Math.min(MAX_INTERPOLATION_TICKS, BASE_INTERPOLATION_TICKS + (steps + 1) / 2);
-    }
-
-    private static int durationFor(BlockPosition source, BlockPosition target) {
-        int dx = Math.abs(source.x() - target.x());
-        int dy = Math.abs(source.y() - target.y());
-        int dz = Math.abs(source.z() - target.z());
-        int steps = Math.max(dx, Math.max(dy, dz));
-        return Math.min(MAX_INTERPOLATION_TICKS, BASE_INTERPOLATION_TICKS + (steps + 1) / 2);
-    }
-
-    private static Transformation translate(Transformation t, BlockPosition source, Location target) {
-        Vector3f offset = new Vector3f(
-                source.x() - (float) target.getX(),
-                source.y() - (float) target.getY(),
-                source.z() - (float) target.getZ());
-        return new Transformation(
-                new Vector3f(t.getTranslation()).add(offset),
-                t.getLeftRotation(),
-                t.getScale(),
-                t.getRightRotation());
-    }
 
     private static void spawnParticle(Player player, Location location) {
         player.spawnParticle(
@@ -685,6 +476,69 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
                 location.getBlockX(),
                 location.getBlockY(),
                 location.getBlockZ());
+    }
+
+    static final class FakeBlockTracker<T> {
+        private final Map<BlockPosition, T> originals = new HashMap<>();
+        private final Map<BlockPosition, T> shown = new HashMap<>();
+
+        void show(
+                Map<BlockPosition, T> wanted,
+                Function<BlockPosition, T> originalAt,
+                BiConsumer<BlockPosition, T> send,
+                BiConsumer<BlockPosition, T> restore) {
+            var stale = originals.entrySet().iterator();
+            while (stale.hasNext()) {
+                Map.Entry<BlockPosition, T> entry = stale.next();
+                if (!wanted.containsKey(entry.getKey())) {
+                    restore.accept(entry.getKey(), entry.getValue());
+                    shown.remove(entry.getKey());
+                    stale.remove();
+                }
+            }
+            for (Map.Entry<BlockPosition, T> entry : wanted.entrySet()) {
+                BlockPosition position = entry.getKey();
+                boolean newlyTracked = false;
+                try {
+                    if (!originals.containsKey(position)) {
+                        originals.put(position, Objects.requireNonNull(originalAt.apply(position), "original"));
+                        newlyTracked = true;
+                    }
+                    send.accept(position, entry.getValue());
+                    shown.put(position, entry.getValue());
+                } catch (RuntimeException ignored) {
+                    if (newlyTracked) {
+                        originals.remove(position);
+                        shown.remove(position);
+                    }
+                }
+            }
+        }
+
+        void resend(Predicate<BlockPosition> include, BiConsumer<BlockPosition, T> send) {
+            for (Map.Entry<BlockPosition, T> entry : shown.entrySet()) {
+                if (include.test(entry.getKey())) {
+                    try {
+                        send.accept(entry.getKey(), entry.getValue());
+                    } catch (RuntimeException ignored) {
+                        // the viewer may be leaving or the chunk may be unavailable
+                    }
+                }
+            }
+        }
+
+        void clear(BiConsumer<BlockPosition, T> restore) {
+            try {
+                originals.forEach(restore);
+            } finally {
+                originals.clear();
+                shown.clear();
+            }
+        }
+
+        boolean isEmpty() {
+            return originals.isEmpty();
+        }
     }
 
     private record Face(Location location, float width, float height) {}

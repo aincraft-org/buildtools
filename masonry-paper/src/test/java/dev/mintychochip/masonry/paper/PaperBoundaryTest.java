@@ -51,14 +51,23 @@ class PaperBoundaryTest {
     }
 
     @Test
-    void previewPlanIsBoundedOutlineNotPerBlock() {
+    void previewPlanUsesCompleteFacesWithinBudget() {
         CuboidSelection selection = new CuboidSelection(
                 new BlockPosition("world", 0, 64, 0),
                 new BlockPosition("world", 63, 80, 63));
         var planned = PaperPreviewRenderer.plan(selection);
-        assertTrue(planned.size() <= 256);
+
+        int width = 64;
+        int height = 17;
+        int depth = 64;
+        int expectedSurface = 2 * (width * depth + width * height + height * depth)
+                - 4 * (width + height + depth) + 8;
+        assertEquals(expectedSurface, planned.size());
         assertTrue(planned.size() < selection.volume());
-        assertTrue(planned.contains(selection.min()));
+        assertTrue(planned.contains(new BlockPosition("world", 1, 64, 1)));
+        assertTrue(planned.contains(new BlockPosition("world", 1, 70, 0)));
+        assertTrue(planned.contains(new BlockPosition("world", 0, 70, 1)));
+        assertTrue(!planned.contains(new BlockPosition("world", 1, 70, 1)));
         assertEquals(planned.size(), planned.stream().distinct().count());
     }
 }

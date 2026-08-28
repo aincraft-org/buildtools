@@ -85,12 +85,12 @@ public final class PlayerSession {
         this.previewMode = Objects.requireNonNull(previewMode, "previewMode");
     }
 
-    /** @return whether block-display preview animation is enabled */
+    /** @return whether optional entity-mode preview animation is enabled */
     public boolean previewAnimation() {
         return previewAnimation;
     }
 
-    /** @param previewAnimation whether to animate preview block displays */
+    /** @param previewAnimation whether to animate optional entity-mode previews */
     public void setPreviewAnimation(boolean previewAnimation) {
         this.previewAnimation = previewAnimation;
     }

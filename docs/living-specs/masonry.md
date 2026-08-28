@@ -1,7 +1,7 @@
 # Masonry — Living Spec
 
 > Status: active
-> Last updated: 2026-08-19
+> Last updated: 2026-08-27
 > Owners:
 
 ## Intent
@@ -21,7 +21,7 @@ Success looks like: a server owner can install the plugin, players can quickly s
 
 ### Out of scope / non-goals
 - Creative-mode free build.
-- Client-side rendering or mods.
+- Client-side mods or custom client assets.
 - Economy (money), experience, or non-block currencies in V1.
 - Procedural terrain/village generation in V1.
 - Cross-server blueprint sharing.
@@ -48,7 +48,7 @@ Success looks like: a server owner can install the plugin, players can quickly s
 - Gradle modules: `masonry-api` (contracts), `masonry-common` (JVM domain), `masonry-paper` (Paper adapter). See `docs/superpowers/specs/2026-08-17-buildtools-gradle-modules-design.md`.
 - Keep tools stateless; per-player session holds selection, clipboard, and undo history.
 - Distinguish `interaction_distance` (server raycast/start-point reach) from `selection_extent` and `max_operation_blocks`; selection extent and operation size are not limited to interaction distance.
-- Render bounded previews with aggregated outlines or capped display entities; never create one `BlockDisplay` per affected block for large operations.
+- For block-backed region previews, render the complete outer faces with per-player fake block packets or particles; enforce the surface packet budget and fall back to the sparse outline only when it is exceeded.
 - Commands remain the fallback and advanced surface; the wand-given Masonry Gadget item is the primary interaction for common tools.
 - Prefer async validation and chunked execution for large operations.
 - Permission node convention: `masonry.tool.<name>`, `masonry.limit.<size>`, `masonry.bypass.creative`.
@@ -56,7 +56,7 @@ Success looks like: a server owner can install the plugin, players can quickly s
 
 ## Current
 
-- [x] `selection` — two-point cuboid selection with `BlockDisplay` outline
+- [x] `selection` — two-point cuboid outline via per-player fake block packets
 - [x] `tools` — replace, fill, copy, paste, undo/redo
 - [x] `survival` — inventory cost, refund on undo, permission nodes
 - [x] `blueprints` — copy-to-clipboard and save/load named blueprints
@@ -91,10 +91,12 @@ V1 command surface is `/masonry` (pos1/pos2, replace, fill, copy, paste, undo/re
 |------|----------|-----|
 | 2026-08-16 | Paper/Spigot plugin, server-side | Large server ecosystem, easy permissions and anti-grief integration |
 | 2026-08-16 | Living spec catalog: root + per-feature specs | Keeps each domain focused and independently evolvable |
-| 2026-08-16 | Visual previews via `BlockDisplay` entities, particle fallback | Clear pre-operation feedback; modern Paper supports display entities |
+| 2026-08-16 | Visual previews via per-player fake block packets, particle fallback | Clear pre-operation feedback without server-side display entities |
+| 2026-08-27 | Block and ghost previews use `Player#sendBlockChange` with tracked originals | Preview blocks are client-only, never server-ticked, and restore the live server state on clear |
+| 2026-08-27 | Region previews render complete outer faces within a 32768-position packet budget | Full face coverage improves spatial clarity without permitting unbounded packet bursts |
 | 2026-08-16 | Survival economics are core, not optional | Every tool must respect inventory or it breaks survival |
 | 2026-08-17 | Reach is split into interaction distance, selection extent, and operation block limits | Lets players operate on an approved region beyond their initial raycast without making reach unlimited |
-| 2026-08-17 | Large previews use bounded aggregated rendering | Avoids one display entity per affected block and keeps previews performant |
+| 2026-08-17 | Large previews use bounded aggregated rendering | Avoids one fake block per affected block and keeps previews performant |
 | 2026-08-17 | Paper 26.2 and Java 25 | Matches current Paper API; 26.2 requires Java 25 |
 | 2026-08-17 | Strict masonry-api/masonry-common/masonry-paper Gradle split | Keeps Paper at the edge and makes domain tests JVM-only |
 | 2026-08-19 | Command-only selection in V1 | Wand item is deferred; `/bt pos1`/`pos2` is enough |

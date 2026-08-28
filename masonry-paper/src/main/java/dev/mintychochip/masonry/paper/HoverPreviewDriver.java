@@ -21,9 +21,9 @@ import org.bukkit.util.RayTraceResult;
 /**
  * Live aim preview: while a player holds the gadget, the cuboid between their stored
  * {@code pos1} and the block they are looking at is outlined continuously. This driver is
- * the single owner of hover preview lifetime — it renders on region change and clears when
- * the gadget is lowered, no corner is set, or the target leaves reach. A signature map
- * prevents respawning entities while the player merely stands still.
+ * the single owner of hover preview lifetime — it renders on region change and clears when the
+ * gadget is lowered, no corner is set, or the target leaves reach. A signature map
+ * prevents resending packet previews while the player merely stands still.
  */
 public final class HoverPreviewDriver implements Runnable {
     private static final long DELAY_TICKS = 8L;
