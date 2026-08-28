@@ -1,3 +1,7 @@
+plugins {
+    id("io.papermc.paperweight.userdev") version "2.0.0-beta.22"
+}
+
 repositories {
     maven {
         name = "papermc"
@@ -8,9 +12,13 @@ repositories {
 dependencies {
     implementation(project(":masonry-common"))
     implementation(project(":masonry-api"))
+    paperweight.paperDevBundle("26.2.build.119-stable")
     compileOnly("io.papermc.paper:paper-api:26.2.build.112-stable")
     testImplementation("io.papermc.paper:paper-api:26.2.build.112-stable")
 }
+
+paperweight.reobfArtifactConfiguration =
+    io.papermc.paperweight.userdev.ReobfArtifactConfiguration.MOJANG_PRODUCTION
 
 tasks.processResources {
     val props = mapOf("version" to version)

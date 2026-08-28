@@ -16,10 +16,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import org.bukkit.Chunk;
-import java.util.function.Function;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Color;
 import org.bukkit.Location;
@@ -40,9 +38,9 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scoreboard.Team;
 
 /**
- * Multi-mode preview renderer. Block and ghost previews use per-player fake block packets via
- * {@link Player#sendBlockChange(Location, BlockData)}; they never create server-side entities or
- * mutate world state. Text and experimental modes retain their explicit entity-based behavior.
+ * Multi-mode preview renderer. Block and ghost previews use per-player BlockDisplay add,
+ * metadata, and destroy packets; they never register the display with a server world. Text and
+ * experimental modes retain their explicit entity-based behavior.
  */
 public final class PaperPreviewRenderer implements PreviewRenderer {
     static final int MAX_DISPLAYS = PreviewGeometry.DEFAULT_MAX_DISPLAYS;
@@ -51,7 +49,9 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
     private final Server server;
     private final PlayerSessionStore sessions;
     private final Map<ActorId, Map<BlockPosition, UUID>> spawnedEntities = new HashMap<>();
-    private final Map<ActorId, FakeBlockTracker<BlockData>> fakeBlocks = new HashMap<>();
+    private final PacketBlockDisplayRenderer packetDisplays = new PacketBlockDisplayRenderer();
+    private final Map<ActorId, PacketDisplayTracker<PacketBlockDisplayRenderer.DisplayState>> packetPreviews =
+            new HashMap<>();
     private final Map<ActorId, PreviewMode> shownModes = new HashMap<>();
     private final Team previewTeam;
 
@@ -120,7 +120,7 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
                 // skip an invalid block state without aborting the rest of the ghost
             }
         }
-        showFakeBlocks(actor, player, world, PreviewMode.BLOCK_CLEAR, wanted);
+        showPacketDisplays(actor, player, world, PreviewMode.BLOCK_CLEAR, wanted);
     }
 
     @Override
@@ -129,7 +129,7 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
         reset(actor);
     }
     /**
-     * Re-sends every active fake block to its owning player after a chunk refresh or other client
+     * Re-sends every active client-only BlockDisplay to its owning player after a client
      * resynchronization.
      *
      * @param actor viewer
@@ -140,7 +140,7 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
     }
 
     /**
-     * Re-sends only fake blocks contained in {@code chunk}.
+     * Re-sends only client-only BlockDisplays contained in {@code chunk}.
      *
      * @param actor viewer
      * @param chunk refreshed chunk
@@ -158,26 +158,46 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
 
     private void resendTracked(ActorId actor, Predicate<BlockPosition> include) {
         Player player = server.getPlayer(actor.value());
-        FakeBlockTracker<BlockData> tracker = fakeBlocks.get(actor);
-        if (player == null || tracker == null) {
+        PacketDisplayTracker<PacketBlockDisplayRenderer.DisplayState> tracked = packetPreviews.get(actor);
+        if (player == null || tracked == null) {
             return;
         }
-        tracker.resend(include, (position, data) -> sendFakeBlock(player, position, data));
+        for (Map.Entry<BlockPosition, PacketBlockDisplayRenderer.DisplayState> entry : tracked.entries().entrySet()) {
+            if (!include.test(entry.getKey())) {
+                continue;
+            }
+            World world = server.getWorld(entry.getKey().worldId());
+            if (world == null) {
+                continue;
+            }
+            try {
+                packetDisplays.resend(
+                        player,
+                        world,
+                        entry.getKey().x(),
+                        entry.getKey().y(),
+                        entry.getKey().z(),
+                        entry.getValue());
+            } catch (RuntimeException ignored) {
+                // the viewer may be leaving or the chunk may be unavailable
+            }
+        }
     }
 
     /**
-     * Removes tracked entity previews, restores tracked fake blocks, and drops the viewer state.
+     * Removes tracked client-only displays and legacy entity previews, then drops viewer state.
      *
      * @param actor viewer
      */
     private void reset(ActorId actor) {
+        PacketDisplayTracker<PacketBlockDisplayRenderer.DisplayState> packets = packetPreviews.remove(actor);
         Map<BlockPosition, UUID> previous = spawnedEntities.remove(actor);
-        FakeBlockTracker<BlockData> fake = fakeBlocks.remove(actor);
         shownModes.remove(actor);
-        if (fake != null) {
-            Player player = server.getPlayer(actor.value());
+        Player player = server.getPlayer(actor.value());
+        if (packets != null) {
+            List<PacketBlockDisplayRenderer.DisplayState> states = packets.clear();
             if (player != null) {
-                fake.clear((position, original) -> restoreFakeBlock(player, position, original));
+                packetDisplays.remove(player, states);
             }
         }
         if (previous == null) {
@@ -229,54 +249,38 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
     }
 
     /**
-     * Applies fake block states only to {@code player}. The server world is never changed and
-     * no entity is created or ticked. Original block data is retained so every fake position can
-     * be restored when the preview changes, clears, or the player logs out.
+     * Sends client-only BlockDisplay packets to {@code player}. The temporary NMS entity used
+     * to build metadata is never added to the server world.
      */
-    private void showFakeBlocks(
+    private void showPacketDisplays(
             ActorId actor,
             Player player,
             World world,
             PreviewMode mode,
             Map<BlockPosition, BlockData> wanted) {
-        if (shownModes.get(actor) != mode) {
-            reset(actor);
+        reset(actor);
+        PacketDisplayTracker<PacketBlockDisplayRenderer.DisplayState> tracker = new PacketDisplayTracker<>();
+        Map<BlockPosition, PacketBlockDisplayRenderer.DisplayState> next = new HashMap<>();
+        for (Map.Entry<BlockPosition, BlockData> entry : wanted.entrySet()) {
+            BlockPosition point = entry.getKey();
+            try {
+                next.put(
+                        point,
+                        packetDisplays.spawn(
+                                player,
+                                world,
+                                point.x(),
+                                point.y(),
+                                point.z(),
+                                entry.getValue()));
+            } catch (RuntimeException ignored) {
+                // fall back to a packet particle for an unsupported block state
+                spawnParticle(player, new Location(world, point.x() + 0.5, point.y() + 0.5, point.z() + 0.5));
+            }
         }
-        FakeBlockTracker<BlockData> tracker =
-                fakeBlocks.computeIfAbsent(actor, ignored -> new FakeBlockTracker<>());
-        tracker.show(
-                wanted,
-                position -> world.getBlockAt(position.x(), position.y(), position.z()).getBlockData().clone(),
-                (position, data) -> sendFakeBlock(player, position, data),
-                (position, original) -> restoreFakeBlock(player, position, original));
-        if (tracker.isEmpty()) {
-            fakeBlocks.remove(actor);
-        }
+        tracker.replace(next);
+        packetPreviews.put(actor, tracker);
         shownModes.put(actor, mode);
-    }
-
-    private void restoreFakeBlock(Player player, BlockPosition position, BlockData original) {
-        World world = server.getWorld(position.worldId());
-        if (world == null) {
-            return;
-        }
-        BlockData restore = original;
-        try {
-            restore = world.getBlockAt(position.x(), position.y(), position.z()).getBlockData();
-        } catch (RuntimeException ignored) {
-            // use the captured state when the live block cannot be read
-        }
-        try {
-            player.sendBlockChange(new Location(world, position.x(), position.y(), position.z()), restore);
-        } catch (RuntimeException ignored) {
-            // the viewer may be leaving or the chunk may have unloaded
-        }
-    }
-    private void sendFakeBlock(Player player, BlockPosition position, BlockData data) {
-        World world = server.getWorld(position.worldId());
-        if (world != null) {
-            player.sendBlockChange(new Location(world, position.x(), position.y(), position.z()), data);
-        }
     }
 
     private void render(ActorId actor, CuboidSelection region) {
@@ -361,7 +365,7 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
         for (BlockPosition point : plan(region)) {
             wanted.put(point, data);
         }
-        showFakeBlocks(actor, player, world, mode, wanted);
+        showPacketDisplays(actor, player, world, mode, wanted);
     }
 
     private void showParticles(ActorId actor, CuboidSelection region, World world, Player player) {
@@ -385,7 +389,7 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
         for (BlockPosition point : plan(region)) {
             wanted.put(point, shulkerData);
         }
-        showFakeBlocks(actor, player, world, PreviewMode.SHULKER, wanted);
+        showPacketDisplays(actor, player, world, PreviewMode.SHULKER, wanted);
     }
 
     private void showExperimental(ActorId actor, CuboidSelection region, World world, Player player, Experimental kind) {
@@ -478,66 +482,23 @@ public final class PaperPreviewRenderer implements PreviewRenderer {
                 location.getBlockZ());
     }
 
-    static final class FakeBlockTracker<T> {
-        private final Map<BlockPosition, T> originals = new HashMap<>();
-        private final Map<BlockPosition, T> shown = new HashMap<>();
 
-        void show(
-                Map<BlockPosition, T> wanted,
-                Function<BlockPosition, T> originalAt,
-                BiConsumer<BlockPosition, T> send,
-                BiConsumer<BlockPosition, T> restore) {
-            var stale = originals.entrySet().iterator();
-            while (stale.hasNext()) {
-                Map.Entry<BlockPosition, T> entry = stale.next();
-                if (!wanted.containsKey(entry.getKey())) {
-                    restore.accept(entry.getKey(), entry.getValue());
-                    shown.remove(entry.getKey());
-                    stale.remove();
-                }
-            }
-            for (Map.Entry<BlockPosition, T> entry : wanted.entrySet()) {
-                BlockPosition position = entry.getKey();
-                boolean newlyTracked = false;
-                try {
-                    if (!originals.containsKey(position)) {
-                        originals.put(position, Objects.requireNonNull(originalAt.apply(position), "original"));
-                        newlyTracked = true;
-                    }
-                    send.accept(position, entry.getValue());
-                    shown.put(position, entry.getValue());
-                } catch (RuntimeException ignored) {
-                    if (newlyTracked) {
-                        originals.remove(position);
-                        shown.remove(position);
-                    }
-                }
-            }
+    static final class PacketDisplayTracker<T> {
+        private final Map<BlockPosition, T> tracked = new HashMap<>();
+
+        void replace(Map<BlockPosition, T> next) {
+            tracked.clear();
+            tracked.putAll(next);
         }
 
-        void resend(Predicate<BlockPosition> include, BiConsumer<BlockPosition, T> send) {
-            for (Map.Entry<BlockPosition, T> entry : shown.entrySet()) {
-                if (include.test(entry.getKey())) {
-                    try {
-                        send.accept(entry.getKey(), entry.getValue());
-                    } catch (RuntimeException ignored) {
-                        // the viewer may be leaving or the chunk may be unavailable
-                    }
-                }
-            }
+        Map<BlockPosition, T> entries() {
+            return Map.copyOf(tracked);
         }
 
-        void clear(BiConsumer<BlockPosition, T> restore) {
-            try {
-                originals.forEach(restore);
-            } finally {
-                originals.clear();
-                shown.clear();
-            }
-        }
-
-        boolean isEmpty() {
-            return originals.isEmpty();
+        List<T> clear() {
+            List<T> previous = List.copyOf(tracked.values());
+            tracked.clear();
+            return previous;
         }
     }
 

@@ -7,7 +7,7 @@ import dev.mintychochip.masonry.api.tool.ToolPreview;
 import dev.mintychochip.masonry.api.world.BlockPosition;
 
 /**
- * Shows a bounded selection or tool outline to one player. Never one fake block per volume block.
+ * Shows a bounded selection or tool outline to one player using client-only display packets or particles.
  */
 public interface PreviewRenderer {
     /**
@@ -27,9 +27,9 @@ public interface PreviewRenderer {
     void showSelection(ActorId actor, CuboidSelection selection);
 
     /**
-     * Shows the clipboard volume as client-side fake blocks at {@code origin}, so the player can
+     * Shows the clipboard volume as client-only BlockDisplay packets at {@code origin}, so the player can
      * see what a paste/move would place before committing. Transparent cells stay see-through.
-     * Bounded to a fake-block cap.
+     * Bounded to a display packet cap.
      *
      * @param actor viewer
      * @param clipboard copied volume
