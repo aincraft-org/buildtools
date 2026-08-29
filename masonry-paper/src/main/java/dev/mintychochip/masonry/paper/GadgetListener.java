@@ -136,37 +136,19 @@ public final class GadgetListener implements Listener {
         BlockFace clickedFace =
                 event.getClickedBlock() == null ? null : event.getBlockFace();
         ExtensionPlan plan = currentExtensionPlan(player, session);
-        if (player.isSneaking()) {
-            if (plan != null) {
-                ExtensionPlan clickedPlan = createExtensionPlan(player, plan.length(), now, clickedFace);
-                if (clickedPlan != null) {
-                    plan = clickedPlan.withWidth(plan.width(), now);
-                }
-            }
-            commitPlan(player, plan);
-            event.setCancelled(true);
-            return;
-        }
         if (plan == null) {
             plan = createExtensionPlan(player, 1, now, clickedFace);
             if (plan == null) {
                 event.setCancelled(true);
                 return;
             }
-            session.setExtensionPlan(plan);
-            player.sendActionBar(Component.text("Extension: 1 x 1", NamedTextColor.AQUA));
         } else {
-            // Retarget to the clicked face before growing by one row.
             ExtensionPlan clickedPlan = createExtensionPlan(player, plan.length(), now, clickedFace);
             if (clickedPlan != null) {
                 plan = clickedPlan.withWidth(plan.width(), now);
             }
-            plan = plan.withLength(
-                    Math.min(limits.selectionExtent(), plan.length() + 1), now);
-            session.setExtensionPlan(plan);
-            player.sendActionBar(Component.text(
-                    "Extension: " + plan.length() + " x " + plan.width(), NamedTextColor.AQUA));
         }
+        commitPlan(player, plan);
         event.setCancelled(true);
     }
 
