@@ -33,6 +33,7 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -52,7 +53,6 @@ public final class GadgetListener implements Listener {
     private final SurvivalTransaction survival;
     private final Map<UUID, Long> lastRightClick = new HashMap<>();
     private static final long REPEAT_WINDOW_TICKS = 6L;
-    private static final long EXTENSION_PREVIEW_TIMEOUT_TICKS = 20L;
 
     public GadgetListener(
             JavaPlugin plugin,
@@ -133,7 +133,7 @@ public final class GadgetListener implements Listener {
         }
         long now = player.getWorld().getFullTime();
         PlayerSession session = sessions.session(actorOf(player));
-        ExtensionPlan plan = currentExtensionPlan(player, session, now);
+        ExtensionPlan plan = currentExtensionPlan(player, session);
         if (player.isSneaking()) {
             commitPlan(player, plan);
             event.setCancelled(true);
@@ -172,8 +172,9 @@ public final class GadgetListener implements Listener {
     }
 
     /**
-     * While an extension plan is armed, scroll widens the plane (line -> plane). Larger jumps
-     * are treated as number-key slot changes and fall through.
+     * Holding the brick selects extension mode. Sneak-scroll adjusts extension length; normal
+     * scrolling remains vanilla hotbar selection. Larger jumps are treated as number-key slot
+     * changes and fall through.
      */
     @EventHandler
     public void onExtensionScroll(PlayerItemHeldEvent event) {
@@ -181,30 +182,67 @@ public final class GadgetListener implements Listener {
         if (!player.hasPermission("masonry.tool.extend")) {
             return;
         }
-        int delta = slotDelta(event.getPreviousSlot(), event.getNewSlot());
-        if (delta == 0) {
-            return;
-        }
+        ItemStack previousItem = player.getInventory().getItem(event.getPreviousSlot());
+        ItemStack nextItem = player.getInventory().getItem(event.getNewSlot());
+        boolean previousBrick = GadgetItem.isExtensionToken(previousItem);
+        boolean nextBrick = GadgetItem.isExtensionToken(nextItem);
         long now = player.getWorld().getFullTime();
         PlayerSession session = sessions.session(actorOf(player));
-        ExtensionPlan plan = currentExtensionPlan(player, session, now);
+
+        if (!previousBrick) {
+            if (nextBrick) {
+                armExtensionPlan(player, now);
+            }
+            return;
+        }
+
+        int delta = slotDelta(event.getPreviousSlot(), event.getNewSlot());
+        if (!player.isSneaking() || delta == 0) {
+            if (nextBrick) {
+                armExtensionPlan(player, now);
+            } else {
+                session.clearExtensionPlan();
+            }
+            return;
+        }
+
+        ExtensionPlan plan = session.extensionPlan().orElse(null);
+        if (plan == null) {
+            plan = createExtensionPlan(player, 1, now);
+            if (plan == null) {
+                return;
+            }
+        }
+        plan = plan.withLengthDelta(delta, limits.selectionExtent(), now);
+        session.setExtensionPlan(plan);
+        event.setCancelled(true);
+        player.sendActionBar(Component.text(
+                "Extension: " + plan.length() + " x " + plan.width(), NamedTextColor.AQUA));
+    }
+
+    @EventHandler
+    public void onExtensionJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        if (player.hasPermission("masonry.tool.extend")
+                && GadgetItem.isExtensionToken(player.getInventory().getItemInMainHand())) {
+            armExtensionPlan(player, player.getWorld().getFullTime());
+        }
+    }
+
+    private void armExtensionPlan(Player player, long now) {
+        ExtensionPlan plan = createExtensionPlan(player, 1, now);
         if (plan == null) {
             return;
         }
-        int width = Math.max(1, Math.min(limits.selectionExtent(), plan.width() + delta));
-        session.setExtensionPlan(plan.withWidth(width, now));
-        event.setCancelled(true);
-        player.sendActionBar(Component.text(
-                "Extension: " + plan.length() + " x " + width, NamedTextColor.AQUA));
+        sessions.session(actorOf(player)).setExtensionPlan(plan);
+        player.sendActionBar(Component.text("Extension: 1 x 1", NamedTextColor.AQUA));
     }
-    private ExtensionPlan currentExtensionPlan(Player player, PlayerSession session, long now) {
+    private ExtensionPlan currentExtensionPlan(Player player, PlayerSession session) {
         ExtensionPlan plan = session.extensionPlan().orElse(null);
         if (plan == null) {
             return null;
         }
-        if (now < plan.lastInputTick()
-                || now - plan.lastInputTick() > EXTENSION_PREVIEW_TIMEOUT_TICKS
-                || !matchesPlayer(player, plan)) {
+        if (!matchesPlayer(player, plan)) {
             session.clearExtensionPlan();
             return null;
         }

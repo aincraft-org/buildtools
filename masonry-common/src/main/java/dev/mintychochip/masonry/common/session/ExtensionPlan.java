@@ -75,6 +75,22 @@ public record ExtensionPlan(
     public ExtensionPlan withLength(int newLength, long inputTick) {
         return new ExtensionPlan(anchor, direction, block, newLength, width, inputTick);
     }
+    /**
+     * Adjusts the planned length by a signed delta and clamps it to the valid range.
+     *
+     * @param delta length change
+     * @param maximumLength upper bound
+     * @param inputTick input time
+     * @return updated plan
+     */
+    public ExtensionPlan withLengthDelta(int delta, int maximumLength, long inputTick) {
+        if (maximumLength < 1) {
+            throw new IllegalArgumentException("maximumLength must be positive");
+        }
+        long adjusted = Math.max(1L, Math.min((long) maximumLength, (long) length + delta));
+        return withLength((int) adjusted, inputTick);
+    }
+
 
     /** @param newWidth new positive width @param inputTick input time @return updated plan */
     public ExtensionPlan withWidth(int newWidth, long inputTick) {

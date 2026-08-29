@@ -62,10 +62,10 @@ Success looks like: a server owner can install the plugin, players can quickly s
 - [x] `blueprints` — copy-to-clipboard and save/load named blueprints
 - [x] this root catalog and project bootstrap
 - [x] Gradle multi-project scaffold: masonry-api, masonry-common, masonry-paper
-- [x] gadget — `/masonry wand` Masonry Gadget item: shift-click pos1/paste, right-click pos2+apply, mode cycling, offhand material
+- [x] gadget — `/masonry wand` Masonry Gadget item: shift-click pos1/paste, right-click pos2+apply, mode cycling, and offhand material for gadget fill/replace
 
 ### Current notes
-V1 command surface is `/masonry` (pos1/pos2, replace, fill, survival_fill, copy, paste, undo/redo, blueprint save/load/list/delete). Defaults: `interactionDistance=6`, `selectionExtent=64`, `maxOperationBlocks=32768`. Held-block extension is a separate input path: hold the ordinary `minecraft:brick` item in the main hand as a mode token and aim at the block to extend; right-click arms one row, repeated right-clicks grow length, scroll changes width, and sneak+right-click commits through the normal survival/undo lifecycle, charging matching placeable blocks from the player's inventory. Live Paper playthrough is not required to mark Current done. The gadget (2026-08-24 design) adds a shift-click item UI over the same dispatcher; destructive `fill`/`replace`/`paste` are op-only while `survival_fill`, `copy`, and the gadget are default-allowed.
+V1 command surface is `/masonry` (pos1/pos2, replace, fill, survival_fill, copy, paste, undo/redo, blueprint save/load/list/delete). Defaults: `interactionDistance=6`, `selectionExtent=64`, `maxOperationBlocks=32768`. Held-block extension is a separate input path: hold the ordinary `minecraft:brick` item in the main hand and aim at the block to extend; the preview appears while the token is held, right-click grows one row, sneak-scroll extends or retracts length, normal scroll changes hotbar slots, and sneak+right-click commits through the normal survival/undo lifecycle, charging matching placeable blocks from the player's inventory. Live Paper playthrough is not required to mark Current done. The gadget (2026-08-24 design) adds a shift-click item UI over the same dispatcher; destructive `fill`/`replace`/`paste` are op-only while `survival_fill`, `copy`, and the gadget are default-allowed.
 
 ## Next
 

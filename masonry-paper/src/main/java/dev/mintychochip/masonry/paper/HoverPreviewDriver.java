@@ -33,7 +33,6 @@ import org.bukkit.util.RayTraceResult;
  */
 public final class HoverPreviewDriver implements Runnable {
     private static final long DELAY_TICKS = 8L;
-    private static final long EXTENSION_PREVIEW_TIMEOUT_TICKS = 20L;
     private static final long PERIOD_TICKS = 4L;
 
     private final JavaPlugin plugin;
@@ -72,10 +71,7 @@ public final class HoverPreviewDriver implements Runnable {
             PlayerSession session = sessions.session(actor);
             ExtensionPlan extension = session.extensionPlan().orElse(null);
             if (extension != null) {
-                long now = player.getWorld().getFullTime();
                 if (!player.hasPermission("masonry.tool.extend")
-                        || now < extension.lastInputTick()
-                        || now - extension.lastInputTick() > EXTENSION_PREVIEW_TIMEOUT_TICKS
                         || !matchesExtension(player, extension)) {
                     session.clearExtensionPlan();
                     hide(actor);

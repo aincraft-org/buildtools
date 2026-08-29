@@ -63,6 +63,20 @@ class ExtensionPlanTest {
     }
 
     @Test
+    void lengthDeltaExtendsAndRetractsWithinBounds() {
+        ExtensionPlan plan = new ExtensionPlan(
+                new BlockPosition("world", 0, 64, 0),
+                new BlockOffset(1, 0, 0),
+                BlockState.of("minecraft:stone"),
+                3,
+                2,
+                0);
+
+        assertEquals(4, plan.withLengthDelta(1, 4, 1).length());
+        assertEquals(1, plan.withLengthDelta(-10, 4, 2).length());
+        assertEquals(2, plan.withLengthDelta(0, 4, 3).width());
+    }
+    @Test
     void widthMustBePositive() {
         BlockPosition anchor = new BlockPosition("world", 0, 64, 0);
         assertThrows(
