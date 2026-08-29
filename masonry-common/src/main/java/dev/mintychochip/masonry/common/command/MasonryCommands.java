@@ -132,49 +132,96 @@ public final class MasonryCommands {
                 "from", context.argument(1),
                 "to", context.argument(2)));
     }
+
     private CommandResult extend(CommandContext context) {
         if (context.arguments().size() < 2) {
-            return CommandResult.fail("Usage: /masonry extend <block>");
+            return CommandResult.fail("Usage: /masonry extend <block> [length] [width] [dx] [dz]");
         }
         BlockState target;
         try {
             target = BlockStates.parse(context.argument(1));
         } catch (IllegalArgumentException ignored) {
-            return CommandResult.fail("Usage: /masonry extend <block>");
+            return CommandResult.fail("Usage: /masonry extend <block> [length] [width] [dx] [dz]");
         }
         if (target.isAir()) {
-            return CommandResult.fail("Usage: /masonry extend <block>");
+            return CommandResult.fail("Usage: /masonry extend <block> [length] [width] [dx] [dz]");
         }
-        BlockPosition endpoint = context.target();
-        if (endpoint == null) {
-            return CommandResult.fail("No extension endpoint");
+        boolean explicitDirection = context.arguments().size() >= 6;
+        if (context.arguments().size() == 5) {
+            return CommandResult.fail("Usage: /masonry extend <block> [length] [width] [dx] [dz]");
         }
-        BlockPosition anchor = context.origin().offset(0, -1, 0);
-        if (!anchor.worldId().equals(endpoint.worldId()) || anchor.y() != endpoint.y()) {
-            return CommandResult.fail("Extension must stay at the standing block height");
+        int length;
+        int width;
+        int dx;
+        int dz;
+        BlockPosition anchor;
+        if (explicitDirection) {
+            anchor = context.origin();
+            length = parseInt(context.argument(2), 1);
+            width = parseInt(context.argument(3), 1);
+            dx = parseInt(context.argument(4), 1);
+            dz = parseInt(context.argument(5), 0);
+            if (Math.abs(dx) + Math.abs(dz) != 1) {
+                return CommandResult.fail("Direction must be a horizontal unit offset");
+            }
+        } else {
+            BlockPosition aimed = context.target();
+            if (aimed == null) {
+                return CommandResult.fail("No extension anchor");
+            }
+            int offsetX = aimed.x() - context.origin().x();
+            int offsetZ = aimed.z() - context.origin().z();
+            if (Math.abs(offsetX) >= Math.abs(offsetZ) && offsetX != 0) {
+                dx = Integer.compare(offsetX, 0);
+                dz = 0;
+            } else if (offsetZ != 0) {
+                dx = 0;
+                dz = Integer.compare(offsetZ, 0);
+            } else {
+                dx = 1;
+                dz = 0;
+            }
+            length = context.arguments().size() > 2 ? parseInt(context.argument(2), 1)
+                    : Math.max(1, Math.max(Math.abs(offsetX), Math.abs(offsetZ)));
+            width = context.arguments().size() > 3 ? parseInt(context.argument(3), 1) : 1;
+            anchor = aimed;
         }
-        if (!world.getBlock(anchor).namespacedKey().equals(target.namespacedKey())) {
-            return CommandResult.fail("Extension must start on a matching block");
+        if (length < 1 || width < 1) {
+            return CommandResult.fail("Length and width must be positive");
         }
-        int dx = Integer.compare(endpoint.x(), anchor.x());
-        int dz = Integer.compare(endpoint.z(), anchor.z());
-        if (dx != 0 && dz != 0) {
-            return CommandResult.fail("Extension must follow a horizontal direction");
+        // Perpendicular spread for the width (centered on the direction axis).
+        int spreadX = dz != 0 ? (width - 1) / 2 : 0;
+        int spreadZ = dx != 0 ? (width - 1) / 2 : 0;
+        int lowX = -spreadX;
+        int lowZ = -spreadZ;
+        int highX = spreadX;
+        int highZ = spreadZ;
+        if (width % 2 == 0) {
+            if (dx != 0) {
+                highZ = spreadZ + 1;
+            } else {
+                highX = spreadX + 1;
+            }
         }
-        if (dx == 0 && dz == 0) {
-            return CommandResult.fail("Extension must reach a neighboring block");
-        }
-        BlockPosition start = anchor.offset(dx, 0, dz);
+        BlockPosition start = anchor.offset(dx + lowX, 0, dz + lowZ);
+        BlockPosition end = anchor.offset(dx * length + highX, 0, dz * length + highZ);
         ToolRequest request = new ToolRequest(
                 context.actorId(),
                 "extend",
-                new CuboidSelection(start, endpoint),
-                Map.of("block", context.argument(1)),
+                new CuboidSelection(start, end),
+                Map.of("block", target.namespacedKey()),
                 null,
                 context.excludedPositions());
         return dispatch(request, "Extended");
     }
 
+    private static int parseInt(String raw, int fallback) {
+        try {
+            return Integer.parseInt(raw);
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
+    }
     private CommandResult fill(CommandContext context, boolean soft) {
         if (context.arguments().size() < 2) {
             return CommandResult.fail("Usage: /masonry fill <block>");

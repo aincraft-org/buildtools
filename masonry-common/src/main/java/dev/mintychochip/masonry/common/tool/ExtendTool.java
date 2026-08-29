@@ -10,7 +10,7 @@ import dev.mintychochip.masonry.api.world.BlockState;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Places a one-block-wide horizontal line into replaceable cells. */
+/** Places a horizontal plane (length by width) into replaceable cells. */
 public final class ExtendTool extends MutatingTool {
     @Override
     public String name() {
@@ -27,8 +27,8 @@ public final class ExtendTool extends MutatingTool {
         if (target == null || target.isAir()) {
             return ValidationResult.invalid("Usage: /masonry extend <block>");
         }
-        if (!isHorizontalLine(request.selection())) {
-            return ValidationResult.invalid("Extension must be a horizontal line");
+        if (!isHorizontalPlane(request.selection())) {
+            return ValidationResult.invalid("Extension must be a horizontal plane");
         }
         for (BlockPosition position : request.selection().positions()) {
             if (request.isExcluded(position)) {
@@ -64,10 +64,8 @@ public final class ExtendTool extends MutatingTool {
         return new BlockPlan(request.selection(), List.copyOf(changes));
     }
 
-    private static boolean isHorizontalLine(dev.mintychochip.masonry.api.selection.CuboidSelection selection) {
-        return selection != null
-                && selection.height() == 1
-                && (selection.width() == 1 || selection.depth() == 1);
+    private static boolean isHorizontalPlane(dev.mintychochip.masonry.api.selection.CuboidSelection selection) {
+        return selection != null && selection.height() == 1;
     }
 
     private static BlockState parseTarget(ToolRequest request) {

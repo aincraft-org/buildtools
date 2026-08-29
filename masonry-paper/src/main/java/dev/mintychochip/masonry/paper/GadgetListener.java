@@ -9,10 +9,11 @@ import dev.mintychochip.masonry.api.service.SurvivalTransaction;
 import dev.mintychochip.masonry.api.service.WorldAccess;
 import dev.mintychochip.masonry.api.world.BlockPosition;
 import dev.mintychochip.masonry.common.command.MasonryCommands;
-import dev.mintychochip.masonry.common.session.PlayerSession;
 import dev.mintychochip.masonry.common.session.ExtensionPlan;
+import dev.mintychochip.masonry.common.session.PlayerSession;
 import dev.mintychochip.masonry.common.session.PlayerSessionStore;
 import dev.mintychochip.masonry.common.session.ToolMode;
+import dev.mintychochip.masonry.api.selection.CuboidSelection;
 import dev.mintychochip.masonry.paper.adapter.GadgetItem;
 import java.util.HashMap;
 import java.util.List;
@@ -126,30 +127,45 @@ public final class GadgetListener implements Listener {
         long now = player.getWorld().getFullTime();
         PlayerSession session = sessions.session(actorOf(player));
         ExtensionPlan plan = currentExtensionPlan(player, session, now);
+        if (player.isSneaking()) {
+            commitPlan(player, plan);
+            event.setCancelled(true);
+            return;
+        }
         if (plan == null) {
             plan = createExtensionPlan(player, 1, now);
             if (plan == null) {
                 return;
             }
             session.setExtensionPlan(plan);
-            player.sendActionBar(Component.text("Extension: 1 block", NamedTextColor.AQUA));
-            event.setCancelled(true);
-            return;
-        }
-        CommandResult result = commands.execute(extensionContext(player, plan));
-        if (result.success()) {
-            session.setExtensionPlan(new ExtensionPlan(
-                    plan.endpoint(), plan.direction(), plan.block(), 1, now));
+            player.sendActionBar(Component.text("Extension: 1 x 1", NamedTextColor.AQUA));
         } else {
-            session.clearExtensionPlan();
-            player.sendActionBar(Component.text(result.message(), NamedTextColor.RED));
+            // Click-to-grow: extend the length by one row per press.
+            plan = plan.withLength(
+                    Math.min(limits.selectionExtent(), plan.length() + 1), now);
+            session.setExtensionPlan(plan);
+            player.sendActionBar(Component.text(
+                    "Extension: " + plan.length() + " x " + plan.width(), NamedTextColor.AQUA));
         }
         event.setCancelled(true);
     }
 
+    private void commitPlan(Player player, ExtensionPlan plan) {
+        if (plan == null) {
+            return;
+        }
+        CommandResult result = commands.execute(extensionContext(player, plan));
+        if (result.success()) {
+            sessions.session(actorOf(player)).clearExtensionPlan();
+        } else {
+            sessions.session(actorOf(player)).clearExtensionPlan();
+            player.sendActionBar(Component.text(result.message(), NamedTextColor.RED));
+        }
+    }
+
     /**
-     * Cancels a one-step hotbar change while a held block is a valid extension source and uses
-     * that change as scroll sizing. Larger jumps are treated as number-key slot changes.
+     * While an extension plan is armed, scroll widens the plane (line -> plane). Larger jumps
+     * are treated as number-key slot changes and fall through.
      */
     @EventHandler
     public void onExtensionScroll(PlayerItemHeldEvent event) {
@@ -167,10 +183,11 @@ public final class GadgetListener implements Listener {
         if (plan == null) {
             return;
         }
-        int length = Math.max(1, Math.min(limits.selectionExtent(), plan.length() + delta));
-        session.setExtensionPlan(plan.withLength(length, now));
+        int width = Math.max(1, Math.min(limits.selectionExtent(), plan.width() + delta));
+        session.setExtensionPlan(plan.withWidth(width, now));
         event.setCancelled(true);
-        player.sendActionBar(Component.text("Extension: " + length + " blocks", NamedTextColor.AQUA));
+        player.sendActionBar(Component.text(
+                "Extension: " + plan.length() + " x " + width, NamedTextColor.AQUA));
     }
     private ExtensionPlan currentExtensionPlan(Player player, PlayerSession session, long now) {
         ExtensionPlan plan = session.extensionPlan().orElse(null);
@@ -191,20 +208,29 @@ public final class GadgetListener implements Listener {
         if (block == null) {
             return null;
         }
-        BlockPosition anchor = standingBlock(player);
-        if (!world.getBlock(anchor).namespacedKey().equals(block.namespacedKey())) {
+        BlockPosition aimed = targetOf(player);
+        if (aimed == null) {
             return null;
         }
-        return new ExtensionPlan(anchor, facing(player), block, length, now);
+        // Aim anchor: the block the player is looking at; direction away from the player.
+        int offsetX = aimed.x() - player.getLocation().getBlockX();
+        int offsetZ = aimed.z() - player.getLocation().getBlockZ();
+        BlockOffset direction;
+        if (Math.abs(offsetX) >= Math.abs(offsetZ) && offsetX != 0) {
+            direction = new BlockOffset(Integer.compare(offsetX, 0), 0, 0);
+        } else if (offsetZ != 0) {
+            direction = new BlockOffset(0, 0, Integer.compare(offsetZ, 0));
+        } else {
+            direction = new BlockOffset(1, 0, 0);
+        }
+        return new ExtensionPlan(aimed, direction, block, length, now);
     }
 
     private boolean matchesPlayer(Player player, ExtensionPlan plan) {
         BlockState block = heldBlock(player);
         return plan.anchor().worldId().equals(player.getWorld().getName())
                 && block != null
-                && block.namespacedKey().equals(plan.block().namespacedKey())
-                && world.getBlock(plan.anchor()).namespacedKey().equals(plan.block().namespacedKey())
-                && facing(player).equals(plan.direction());
+                && block.namespacedKey().equals(plan.block().namespacedKey());
     }
 
     private BlockState heldBlock(Player player) {
@@ -213,23 +239,6 @@ public final class GadgetListener implements Listener {
             return null;
         }
         return BlockState.of(item.getType().getKey().toString());
-    }
-
-    private BlockPosition standingBlock(Player player) {
-        return new BlockPosition(
-                player.getWorld().getName(),
-                player.getLocation().getBlockX(),
-                player.getLocation().getBlockY() - 1,
-                player.getLocation().getBlockZ());
-    }
-
-    private BlockOffset facing(Player player) {
-        return switch (Math.floorMod(Math.round(player.getLocation().getYaw() / 90.0f), 4)) {
-            case 0 -> new BlockOffset(0, 0, 1);
-            case 1 -> new BlockOffset(-1, 0, 0);
-            case 2 -> new BlockOffset(0, 0, -1);
-            default -> new BlockOffset(1, 0, 0);
-        };
     }
 
     private static int slotDelta(int previousSlot, int newSlot) {
@@ -443,12 +452,16 @@ public final class GadgetListener implements Listener {
                 player.getLocation().getBlockX(),
                 player.getLocation().getBlockY(),
                 player.getLocation().getBlockZ());
+        CuboidSelection region = plan.selection();
         return new CommandContext(
                 actorOf(player),
                 player.getWorld().getName(),
-                plan.anchor().offset(0, 1, 0),
-                plan.endpoint(),
-                List.of("extend", plan.block().namespacedKey()),
+                plan.anchor(),
+                region.max(),
+                List.of("extend", plan.block().namespacedKey(),
+                        Integer.toString(plan.length()), Integer.toString(plan.width()),
+                        Integer.toString(plan.direction().x()),
+                        Integer.toString(plan.direction().z())),
                 Set.of(body, body.offset(0, 1, 0)));
     }
 

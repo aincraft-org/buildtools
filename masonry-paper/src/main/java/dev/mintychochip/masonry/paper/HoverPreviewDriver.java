@@ -2,13 +2,16 @@ package dev.mintychochip.masonry.paper;
 
 import dev.mintychochip.masonry.api.ActorId;
 import dev.mintychochip.masonry.api.limits.OperationLimits;
+import dev.mintychochip.masonry.api.clipboard.Clipboard;
 import dev.mintychochip.masonry.api.clipboard.BlockOffset;
+import dev.mintychochip.masonry.api.world.BlockState;
 import dev.mintychochip.masonry.api.selection.CuboidSelection;
 import dev.mintychochip.masonry.api.world.BlockPosition;
 import dev.mintychochip.masonry.common.session.ExtensionPlan;
 import dev.mintychochip.masonry.common.session.PlayerSession;
 import dev.mintychochip.masonry.common.session.PlayerSessionStore;
 import dev.mintychochip.masonry.paper.adapter.PaperPreviewRenderer;
+import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -83,7 +86,7 @@ public final class HoverPreviewDriver implements Runnable {
                 if (signature.equals(shownRegions.put(player.getUniqueId(), signature))) {
                     continue;
                 }
-                previews.showSelection(actor, extension.selection());
+                previews.showGhost(actor, ghostOf(extension), extension.selection().min());
                 continue;
             }
             if (!GadgetItem.isGadget(plugin, player.getInventory().getItemInMainHand())
@@ -133,21 +136,25 @@ public final class HoverPreviewDriver implements Runnable {
         if (item == null || item.getType().isAir() || !item.getType().isBlock()) {
             return false;
         }
-        Block support = player.getWorld().getBlockAt(
-                plan.anchor().x(), plan.anchor().y(), plan.anchor().z());
         return plan.anchor().worldId().equals(player.getWorld().getName())
-                && item.getType().getKey().toString().equals(plan.block().namespacedKey())
-                && support.getType().getKey().toString().equals(plan.block().namespacedKey())
-                && facing(player).equals(plan.direction());
+                && item.getType().getKey().toString().equals(plan.block().namespacedKey());
     }
 
-    private BlockOffset facing(Player player) {
-        return switch (Math.floorMod(Math.round(player.getLocation().getYaw() / 90.0f), 4)) {
-            case 0 -> new BlockOffset(0, 0, 1);
-            case 1 -> new BlockOffset(-1, 0, 0);
-            case 2 -> new BlockOffset(0, 0, -1);
-            default -> new BlockOffset(1, 0, 0);
-        };
+    /**
+     * Builds a clipboard whose cells are every block in the plan's selection, all the plan's
+     * block state, keyed by offset from the selection minimum — so {@code showGhost} renders
+     * the extension as solid brick ghosts.
+     */
+    private static Clipboard ghostOf(ExtensionPlan plan) {
+        CuboidSelection selection = plan.selection();
+        BlockPosition min = selection.min();
+        Map<BlockOffset, BlockState> blocks = new LinkedHashMap<>();
+        for (BlockPosition position : selection.positions()) {
+            blocks.put(new BlockOffset(
+                    position.x() - min.x(), position.y() - min.y(), position.z() - min.z()),
+                    plan.block());
+        }
+        return new Clipboard(min.worldId(), blocks);
     }
 
     private BlockPosition targetOf(Player player) {

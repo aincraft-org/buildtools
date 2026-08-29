@@ -98,11 +98,29 @@ class MasonryCommandsTest {
         CommandResult usage = harness.commands.execute(
                 harness.command(feet, harness.pos(1, 64, 0), "extend"));
         assertFalse(usage.success());
-        assertEquals("Usage: /masonry extend <block>", usage.message());
+        assertEquals("Usage: /masonry extend <block> [length] [width] [dx] [dz]", usage.message());
 
         CommandResult result = harness.commands.execute(
                 harness.command(feet, harness.pos(1, 64, 0), "extend", bricks.namespacedKey()));
         assertTrue(result.success(), result.message());
-        assertEquals(bricks, harness.world.getBlock(harness.pos(1, 64, 0)));
+        // Aim anchor = (1,64,0); extension one past it along +X (offset +1,0) → x 2..2.
+        assertEquals(bricks, harness.world.getBlock(harness.pos(2, 64, 0)));
+    }
+
+    @Test
+    void extendWithPartialDirectionArgsIsRefusedNotThrown() {
+        TestHarness harness = new TestHarness();
+        BlockPosition feet = harness.pos(0, 65, 0);
+        BlockState bricks = BlockState.of("minecraft:bricks");
+        harness.survival.give(TestHarness.ACTOR, bricks.itemKey(), 1);
+
+        // Five tokens (extend block length width dx, no dz) must fail cleanly, not throw.
+        CommandResult result = harness.commands.execute(
+                harness.command(feet, harness.pos(1, 64, 0),
+                        "extend", bricks.namespacedKey(), "3", "3", "1"));
+
+        assertFalse(result.success());
+        // It must not have partially applied anything.
+        assertEquals(BlockState.AIR, harness.world.getBlock(harness.pos(2, 64, 0)));
     }
 }
