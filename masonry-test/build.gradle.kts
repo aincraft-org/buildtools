@@ -2,6 +2,7 @@ import org.gradle.api.tasks.bundling.Jar
 
 plugins {
     id("xyz.jpenilla.run-paper") version "3.1.0"
+    id("io.github.development-network")
 }
 
 repositories {
@@ -34,6 +35,7 @@ runPaper {
 tasks.runServer {
     minecraftVersion("26.2")
     serverJar(file("run/cache/paper-26.2-112.jar"))
+    args("--port", providers.gradleProperty("networkBackendPort").orElse("30071").get())
     pluginJars.from(project(":masonry-paper").tasks.named<Jar>("jar").flatMap { it.archiveFile })
     pluginJars.from(tasks.jar.flatMap { it.archiveFile })
 }

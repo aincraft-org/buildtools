@@ -1,6 +1,7 @@
 package dev.mintychochip.masonry.paper;
 
 import dev.mintychochip.masonry.api.ActorId;
+import dev.mintychochip.masonry.api.clipboard.BlockOffset;
 import dev.mintychochip.masonry.api.command.CommandContext;
 import dev.mintychochip.masonry.api.command.CommandResult;
 import dev.mintychochip.masonry.api.limits.OperationLimits;
@@ -9,6 +10,7 @@ import dev.mintychochip.masonry.api.service.WorldAccess;
 import dev.mintychochip.masonry.api.world.BlockPosition;
 import dev.mintychochip.masonry.common.command.MasonryCommands;
 import dev.mintychochip.masonry.common.session.PlayerSession;
+import dev.mintychochip.masonry.common.session.ExtensionPlan;
 import dev.mintychochip.masonry.common.session.PlayerSessionStore;
 import dev.mintychochip.masonry.common.session.ToolMode;
 import dev.mintychochip.masonry.paper.adapter.GadgetItem;
@@ -21,6 +23,7 @@ import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.block.Block;
+import dev.mintychochip.masonry.api.world.BlockState;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -28,6 +31,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -47,6 +51,7 @@ public final class GadgetListener implements Listener {
     private final SurvivalTransaction survival;
     private final Map<UUID, Long> lastRightClick = new HashMap<>();
     private static final long REPEAT_WINDOW_TICKS = 6L;
+    private static final long EXTENSION_PREVIEW_TIMEOUT_TICKS = 20L;
 
     public GadgetListener(
             JavaPlugin plugin,
@@ -101,6 +106,140 @@ public final class GadgetListener implements Listener {
         if (consumed) {
             event.setCancelled(true);
         }
+    }
+
+    /**
+     * Uses ordinary placeable blocks as an extension tool. A valid support block under the
+     * player's feet arms a one-block extension; a plan created by scrolling is committed here.
+     */
+    @EventHandler
+    public void onBrickInteract(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND
+                || (event.getAction() != Action.RIGHT_CLICK_AIR
+                        && event.getAction() != Action.RIGHT_CLICK_BLOCK)) {
+            return;
+        }
+        Player player = event.getPlayer();
+        if (!player.hasPermission("masonry.tool.extend")) {
+            return;
+        }
+        long now = player.getWorld().getFullTime();
+        PlayerSession session = sessions.session(actorOf(player));
+        ExtensionPlan plan = currentExtensionPlan(player, session, now);
+        if (plan == null) {
+            plan = createExtensionPlan(player, 1, now);
+            if (plan == null) {
+                return;
+            }
+            session.setExtensionPlan(plan);
+            player.sendActionBar(Component.text("Extension: 1 block", NamedTextColor.AQUA));
+            event.setCancelled(true);
+            return;
+        }
+        CommandResult result = commands.execute(extensionContext(player, plan));
+        if (result.success()) {
+            session.setExtensionPlan(new ExtensionPlan(
+                    plan.endpoint(), plan.direction(), plan.block(), 1, now));
+        } else {
+            session.clearExtensionPlan();
+            player.sendActionBar(Component.text(result.message(), NamedTextColor.RED));
+        }
+        event.setCancelled(true);
+    }
+
+    /**
+     * Cancels a one-step hotbar change while a held block is a valid extension source and uses
+     * that change as scroll sizing. Larger jumps are treated as number-key slot changes.
+     */
+    @EventHandler
+    public void onExtensionScroll(PlayerItemHeldEvent event) {
+        Player player = event.getPlayer();
+        if (!player.hasPermission("masonry.tool.extend")) {
+            return;
+        }
+        int delta = slotDelta(event.getPreviousSlot(), event.getNewSlot());
+        if (delta == 0) {
+            return;
+        }
+        long now = player.getWorld().getFullTime();
+        PlayerSession session = sessions.session(actorOf(player));
+        ExtensionPlan plan = currentExtensionPlan(player, session, now);
+        if (plan == null) {
+            return;
+        }
+        int length = Math.max(1, Math.min(limits.selectionExtent(), plan.length() + delta));
+        session.setExtensionPlan(plan.withLength(length, now));
+        event.setCancelled(true);
+        player.sendActionBar(Component.text("Extension: " + length + " blocks", NamedTextColor.AQUA));
+    }
+    private ExtensionPlan currentExtensionPlan(Player player, PlayerSession session, long now) {
+        ExtensionPlan plan = session.extensionPlan().orElse(null);
+        if (plan == null) {
+            return null;
+        }
+        if (now < plan.lastInputTick()
+                || now - plan.lastInputTick() > EXTENSION_PREVIEW_TIMEOUT_TICKS
+                || !matchesPlayer(player, plan)) {
+            session.clearExtensionPlan();
+            return null;
+        }
+        return plan;
+    }
+
+    private ExtensionPlan createExtensionPlan(Player player, int length, long now) {
+        BlockState block = heldBlock(player);
+        if (block == null) {
+            return null;
+        }
+        BlockPosition anchor = standingBlock(player);
+        if (!world.getBlock(anchor).namespacedKey().equals(block.namespacedKey())) {
+            return null;
+        }
+        return new ExtensionPlan(anchor, facing(player), block, length, now);
+    }
+
+    private boolean matchesPlayer(Player player, ExtensionPlan plan) {
+        BlockState block = heldBlock(player);
+        return plan.anchor().worldId().equals(player.getWorld().getName())
+                && block != null
+                && block.namespacedKey().equals(plan.block().namespacedKey())
+                && world.getBlock(plan.anchor()).namespacedKey().equals(plan.block().namespacedKey())
+                && facing(player).equals(plan.direction());
+    }
+
+    private BlockState heldBlock(Player player) {
+        ItemStack item = player.getInventory().getItemInMainHand();
+        if (item == null || item.getType().isAir() || !item.getType().isBlock()) {
+            return null;
+        }
+        return BlockState.of(item.getType().getKey().toString());
+    }
+
+    private BlockPosition standingBlock(Player player) {
+        return new BlockPosition(
+                player.getWorld().getName(),
+                player.getLocation().getBlockX(),
+                player.getLocation().getBlockY() - 1,
+                player.getLocation().getBlockZ());
+    }
+
+    private BlockOffset facing(Player player) {
+        return switch (Math.floorMod(Math.round(player.getLocation().getYaw() / 90.0f), 4)) {
+            case 0 -> new BlockOffset(0, 0, 1);
+            case 1 -> new BlockOffset(-1, 0, 0);
+            case 2 -> new BlockOffset(0, 0, -1);
+            default -> new BlockOffset(1, 0, 0);
+        };
+    }
+
+    private static int slotDelta(int previousSlot, int newSlot) {
+        int delta = newSlot - previousSlot;
+        if (delta > 4) {
+            delta -= 9;
+        } else if (delta < -4) {
+            delta += 9;
+        }
+        return Math.abs(delta) == 1 ? delta : 0;
     }
 
     /**
@@ -297,6 +436,20 @@ public final class GadgetListener implements Listener {
                 Set.of(
                         origin,
                         new BlockPosition(origin.worldId(), origin.x(), origin.y() + 1, origin.z())));
+    }
+    private CommandContext extensionContext(Player player, ExtensionPlan plan) {
+        BlockPosition body = new BlockPosition(
+                player.getWorld().getName(),
+                player.getLocation().getBlockX(),
+                player.getLocation().getBlockY(),
+                player.getLocation().getBlockZ());
+        return new CommandContext(
+                actorOf(player),
+                player.getWorld().getName(),
+                plan.anchor().offset(0, 1, 0),
+                plan.endpoint(),
+                List.of("extend", plan.block().namespacedKey()),
+                Set.of(body, body.offset(0, 1, 0)));
     }
 
     /**

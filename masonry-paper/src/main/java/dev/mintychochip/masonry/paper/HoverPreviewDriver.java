@@ -2,8 +2,10 @@ package dev.mintychochip.masonry.paper;
 
 import dev.mintychochip.masonry.api.ActorId;
 import dev.mintychochip.masonry.api.limits.OperationLimits;
+import dev.mintychochip.masonry.api.clipboard.BlockOffset;
 import dev.mintychochip.masonry.api.selection.CuboidSelection;
 import dev.mintychochip.masonry.api.world.BlockPosition;
+import dev.mintychochip.masonry.common.session.ExtensionPlan;
 import dev.mintychochip.masonry.common.session.PlayerSession;
 import dev.mintychochip.masonry.common.session.PlayerSessionStore;
 import dev.mintychochip.masonry.paper.adapter.PaperPreviewRenderer;
@@ -15,6 +17,7 @@ import java.util.UUID;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.RayTraceResult;
 
@@ -27,6 +30,7 @@ import org.bukkit.util.RayTraceResult;
  */
 public final class HoverPreviewDriver implements Runnable {
     private static final long DELAY_TICKS = 8L;
+    private static final long EXTENSION_PREVIEW_TIMEOUT_TICKS = 20L;
     private static final long PERIOD_TICKS = 4L;
 
     private final JavaPlugin plugin;
@@ -62,12 +66,31 @@ public final class HoverPreviewDriver implements Runnable {
     public void run() {
         for (Player player : plugin.getServer().getOnlinePlayers()) {
             ActorId actor = new ActorId(player.getUniqueId());
+            PlayerSession session = sessions.session(actor);
+            ExtensionPlan extension = session.extensionPlan().orElse(null);
+            if (extension != null) {
+                long now = player.getWorld().getFullTime();
+                if (!player.hasPermission("masonry.tool.extend")
+                        || now < extension.lastInputTick()
+                        || now - extension.lastInputTick() > EXTENSION_PREVIEW_TIMEOUT_TICKS
+                        || !matchesExtension(player, extension)) {
+                    session.clearExtensionPlan();
+                    hide(actor);
+                    continue;
+                }
+                String signature = "extend|" + extension.anchor() + "|" + extension.direction()
+                        + "|" + extension.length() + "|" + extension.block();
+                if (signature.equals(shownRegions.put(player.getUniqueId(), signature))) {
+                    continue;
+                }
+                previews.showSelection(actor, extension.selection());
+                continue;
+            }
             if (!GadgetItem.isGadget(plugin, player.getInventory().getItemInMainHand())
                     || !player.hasPermission("masonry.command")) {
                 hide(actor);
                 continue;
             }
-            PlayerSession session = sessions.session(actor);
             BlockPosition pos1 = session.pos1().orElse(null);
             BlockPosition target = targetOf(player);
             BlockPosition placement = placementOf(player);
@@ -104,6 +127,27 @@ public final class HoverPreviewDriver implements Runnable {
         if (shownRegions.remove(actor.value()) != null) {
             previews.clear(actor);
         }
+    }
+    private boolean matchesExtension(Player player, ExtensionPlan plan) {
+        ItemStack item = player.getInventory().getItemInMainHand();
+        if (item == null || item.getType().isAir() || !item.getType().isBlock()) {
+            return false;
+        }
+        Block support = player.getWorld().getBlockAt(
+                plan.anchor().x(), plan.anchor().y(), plan.anchor().z());
+        return plan.anchor().worldId().equals(player.getWorld().getName())
+                && item.getType().getKey().toString().equals(plan.block().namespacedKey())
+                && support.getType().getKey().toString().equals(plan.block().namespacedKey())
+                && facing(player).equals(plan.direction());
+    }
+
+    private BlockOffset facing(Player player) {
+        return switch (Math.floorMod(Math.round(player.getLocation().getYaw() / 90.0f), 4)) {
+            case 0 -> new BlockOffset(0, 0, 1);
+            case 1 -> new BlockOffset(-1, 0, 0);
+            case 2 -> new BlockOffset(0, 0, -1);
+            default -> new BlockOffset(1, 0, 0);
+        };
     }
 
     private BlockPosition targetOf(Player player) {

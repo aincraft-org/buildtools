@@ -86,4 +86,23 @@ class MasonryCommandsTest {
         assertFalse(result.success());
         assertEquals("Clipboard is empty", result.message());
     }
+    @Test
+    void extendCommandDispatchesItsBlockArgument() {
+        TestHarness harness = new TestHarness();
+        BlockPosition feet = harness.pos(0, 65, 0);
+        BlockPosition anchor = harness.pos(0, 64, 0);
+        BlockState bricks = BlockState.of("minecraft:bricks");
+        harness.world.put(anchor, bricks);
+        harness.survival.give(TestHarness.ACTOR, bricks.itemKey(), 1);
+
+        CommandResult usage = harness.commands.execute(
+                harness.command(feet, harness.pos(1, 64, 0), "extend"));
+        assertFalse(usage.success());
+        assertEquals("Usage: /masonry extend <block>", usage.message());
+
+        CommandResult result = harness.commands.execute(
+                harness.command(feet, harness.pos(1, 64, 0), "extend", bricks.namespacedKey()));
+        assertTrue(result.success(), result.message());
+        assertEquals(bricks, harness.world.getBlock(harness.pos(1, 64, 0)));
+    }
 }

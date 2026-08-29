@@ -61,6 +61,7 @@ public final class MasonryBrigadierCommand {
         root.then(replace());
         root.then(fill("fill"));
         root.then(fill("survival_fill"));
+        root.then(extend());
         root.then(Commands.literal("copy").executes(ctx -> execute(ctx, List.of("copy"))));
         root.then(Commands.literal("paste").executes(ctx -> execute(ctx, List.of("paste"))));
         root.then(Commands.literal("undo").executes(ctx -> execute(ctx, List.of("undo"))));
@@ -97,6 +98,13 @@ public final class MasonryBrigadierCommand {
                 .then(Commands.argument("block", StringArgumentType.word())
                         .suggests(blockStateSuggestions())
                         .executes(ctx -> execute(ctx, List.of(name, StringArgumentType.getString(ctx, "block")))));
+    }
+    private LiteralArgumentBuilder<CommandSourceStack> extend() {
+        return Commands.literal("extend")
+                .then(Commands.argument("block", StringArgumentType.word())
+                        .suggests(blockStateSuggestions())
+                        .executes(ctx -> execute(ctx, List.of(
+                                "extend", StringArgumentType.getString(ctx, "block")))));
     }
 
     private LiteralArgumentBuilder<CommandSourceStack> blueprint(String name) {

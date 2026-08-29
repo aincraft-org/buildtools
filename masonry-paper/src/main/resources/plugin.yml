@@ -11,7 +11,7 @@ softdepend:
 commands:
   masonry:
     description: Masonry command root
-    usage: /masonry <pos1|pos2|replace|fill|survival_fill|copy|paste|cut|move|repeat|undo|redo|blueprint|wand|previewmode>
+    usage: /masonry <pos1|pos2|replace|fill|survival_fill|extend|copy|paste|cut|move|repeat|undo|redo|blueprint|wand|previewmode>
     permission: masonry.command
 permissions:
   masonry.command:
@@ -19,6 +19,9 @@ permissions:
     default: true
   masonry.tool.survival_fill:
     description: Use /masonry survival_fill and the gadget's safe fill
+    default: true
+  masonry.tool.extend:
+    description: Extend a matching held block in a horizontal line
     default: true
   masonry.tool.copy:
     description: Use /masonry copy

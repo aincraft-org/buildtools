@@ -1,7 +1,7 @@
 # Tools — Living Spec
 
 > Status: active
-> Last updated: 2026-08-27
+> Last updated: 2026-08-29
 > Owners:
 
 ## Intent
@@ -12,7 +12,7 @@ Provide a consistent, extensible set of building operations that all share the s
 
 ### In scope
 - Tool framework: registration, state, commands, preview, execution, undo.
-- V1 tools: replace, fill, copy, paste.
+- V1 tools: replace, fill, copy, paste, horizontal extension.
 - Undo/redo for every mutating tool.
 - Per-tool permission nodes and survival cost.
 
@@ -43,6 +43,7 @@ Provide a consistent, extensible set of building operations that all share the s
 - Connected-block tools use bounded six-directional BFS/flood-fill traversal with a visited set.
 - Chaining stops at `max_operation_blocks`, `max_chain_distance`, unloaded/forbidden areas, or a non-matching block.
 - A chain preview is calculated before mutation and displays the affected outline, count, and resource cost.
+- Horizontal extension starts from a matching support block under the player, follows horizontal facing, and plans a bounded one-block-wide line before commit.
 
 ## Current
 
@@ -52,6 +53,7 @@ Provide a consistent, extensible set of building operations that all share the s
 - [x] Copy tool (region to clipboard)
 - [x] Paste tool (clipboard to world)
 - [x] Undo/redo
+- [x] Horizontal extension from a held matching block with scroll-sized preview
 
 ## Next
 
@@ -77,6 +79,7 @@ Provide a consistent, extensible set of building operations that all share the s
 | 2026-08-17 | Connected-block chaining is explicit and bounded | Prevents accidental traversal of an entire structure or world |
 | 2026-08-17 | Chain traversal starts with six orthogonal neighbors | Predictable connectivity; diagonal modes can be added later |
 | 2026-08-17 | Reach is validated separately from operation extent | Initial interaction can be reachable while the approved operation is larger |
+| 2026-08-29 | Horizontal extension uses an armed preview and scroll-sized commit | Keeps repeated right-click progression safe while preserving exact preview, validation, cost, and undo |
 
 ## Open questions
 

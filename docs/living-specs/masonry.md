@@ -1,7 +1,7 @@
 # Masonry — Living Spec
 
 > Status: active
-> Last updated: 2026-08-27
+> Last updated: 2026-08-29
 > Owners:
 
 ## Intent
@@ -14,7 +14,7 @@ Success looks like: a server owner can install the plugin, players can quickly s
 
 ### In scope
 - Server-side Paper/Spigot plugin.
-- Survival-mode building tools: selection, replace, fill, copy, paste, undo.
+- Survival-mode building tools: selection, replace, fill, horizontal extension, copy, paste, undo.
 - Visual previews of the affected region before the operation commits.
 - Survival economics: inventory cost, refunds on undo, permission checks.
 - Blueprint save/load and basic copy/paste.
@@ -57,7 +57,7 @@ Success looks like: a server owner can install the plugin, players can quickly s
 ## Current
 
 - [x] `selection` — two-point cuboid outline via per-player BlockDisplay packets
-- [x] `tools` — replace, fill, copy, paste, undo/redo
+- [x] `tools` — replace, fill, horizontal extension, copy, paste, undo/redo
 - [x] `survival` — inventory cost, refund on undo, permission nodes
 - [x] `blueprints` — copy-to-clipboard and save/load named blueprints
 - [x] this root catalog and project bootstrap
@@ -65,7 +65,7 @@ Success looks like: a server owner can install the plugin, players can quickly s
 - [x] gadget — `/masonry wand` Masonry Gadget item: shift-click pos1/paste, right-click pos2+apply, mode cycling, offhand material
 
 ### Current notes
-V1 command surface is `/masonry` (pos1/pos2, replace, fill, copy, paste, undo/redo, blueprint save/load/list/delete). Defaults: `interactionDistance=6`, `selectionExtent=64`, `maxOperationBlocks=32768`. Live Paper playthrough is not required to mark Current done. The gadget (2026-08-24 design) adds a shift-click item UI over the same dispatcher; destructive `fill`/`replace`/`paste` are op-only while `survival_fill`, `copy`, and the gadget are default-allowed.
+V1 command surface is `/masonry` (pos1/pos2, replace, fill, survival_fill, copy, paste, undo/redo, blueprint save/load/list/delete). Defaults: `interactionDistance=6`, `selectionExtent=64`, `maxOperationBlocks=32768`. Held-block extension is a separate input path: it starts from a matching block under the player; right-click arms one block, scroll changes the horizontal preview length, and right-click commits it through the normal survival/undo lifecycle. Live Paper playthrough is not required to mark Current done. The gadget (2026-08-24 design) adds a shift-click item UI over the same dispatcher; destructive `fill`/`replace`/`paste` are op-only while `survival_fill`, `copy`, and the gadget are default-allowed.
 
 ## Next
 
@@ -103,6 +103,7 @@ V1 command surface is `/masonry` (pos1/pos2, replace, fill, copy, paste, undo/re
 | 2026-08-19 | Defaults 6 / 64 / 32768 | Locked so limits are testable without a config file |
 | 2026-08-19 | Flat-file Sponge Schematic blueprints | Player-scoped `.schem` + JSON metadata under the plugin data folder |
 | 2026-08-24 | Gadget item as primary UI; `/bt` stays as fallback | Supersedes command-only V1 decision per `docs/superpowers/specs/2026-08-24-buildtools-gadget-design.md` |
+| 2026-08-29 | Held-block extension is horizontal, bounded by selection extent, and executor-backed | Supports fast rows without bypassing survival costs, previews, claims, or undo |
 
 ## Open questions
 

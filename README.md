@@ -2,7 +2,7 @@
 
 **Survival-friendly building assistant for Paper/Spigot.**
 
-Masonry gives players a set of survival-mode building tools — selection, replace, fill, copy, paste, undo/redo, blueprints, and a wand gadget — with live previews, inventory costs, and permission checks. It is a server-side plugin.
+Masonry gives players a set of survival-mode building tools — selection, replace, fill, horizontal brick extension, copy, paste, undo/redo, blueprints, and a wand gadget — with live previews, inventory costs, and permission checks. It is a server-side plugin.
 
 Created by **mintychochip**.
 
@@ -25,19 +25,20 @@ Created by **mintychochip**.
   - Set selection corners: `/masonry pos1` and `/masonry pos2`
   - Replace blocks: `/masonry replace <from> <to>`
   - Fill a region: `/masonry fill <block>`
+  - Extend a matching block in the facing direction: hold the block, right-click to arm, scroll to size, right-click to commit
   - Copy a region: `/masonry copy`
   - Paste it: `/masonry paste`
   - Undo: `/masonry undo`
   - Redo: `/masonry redo`
 
 ## Commands & permissions
-
-The root command is `/masonry`. Subcommands: `pos1`, `pos2`, `replace`, `fill`, `survival_fill`, `copy`, `paste`, `cut`, `move`, `repeat`, `undo`, `redo`, `blueprint`, `wand`, `previewmode`.
+The root command is `/masonry`. Subcommands: `pos1`, `pos2`, `replace`, `fill`, `survival_fill`, `extend`, `copy`, `paste`, `cut`, `move`, `repeat`, `undo`, `redo`, `blueprint`, `wand`, `previewmode`.
 
 | Permission | Default | Description |
 |---|---|---|
 | `masonry.command` | `true` | Use the `/masonry` command root |
 | `masonry.tool.survival_fill` | `true` | Use `/masonry survival_fill` and the gadget's safe fill |
+| `masonry.tool.extend` | `true` | Extend the matching held block in a horizontal line |
 | `masonry.tool.copy` | `true` | Use `/masonry copy` |
 | `masonry.tool.fill` | `op` | Use `/masonry fill` (overwrites any block) |
 | `masonry.tool.replace` | `op` | Use `/masonry replace` (replaces matched blocks) |

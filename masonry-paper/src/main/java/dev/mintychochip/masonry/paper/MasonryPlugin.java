@@ -12,6 +12,7 @@ import dev.mintychochip.masonry.common.session.PlayerSessionStore;
 import dev.mintychochip.masonry.common.tool.CopyTool;
 import dev.mintychochip.masonry.common.tool.CutTool;
 import dev.mintychochip.masonry.common.tool.FillTool;
+import dev.mintychochip.masonry.common.tool.ExtendTool;
 import dev.mintychochip.masonry.common.tool.MoveTool;
 import dev.mintychochip.masonry.common.tool.PasteTool;
 import dev.mintychochip.masonry.common.tool.ReplaceTool;
@@ -42,7 +43,7 @@ import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
 /**
- * Paper entry point. Wires {@code api}/{@code common} ports, registers replace/fill/copy/paste,
+ * Paper entry point. Wires {@code api}/{@code common} ports, registers replace/fill/extend/copy/paste,
  * and binds {@code /masonry} via Brigadier.
  */
 public final class MasonryPlugin extends JavaPlugin implements Listener {
@@ -64,6 +65,7 @@ public final class MasonryPlugin extends JavaPlugin implements Listener {
         this.toolRegistry = new ToolRegistry();
         this.toolRegistry.register(new ReplaceTool());
         this.toolRegistry.register(new FillTool());
+        this.toolRegistry.register(new ExtendTool());
         this.toolRegistry.register(new SurvivalFillTool());
         this.toolRegistry.register(new CopyTool(sessions));
         this.toolRegistry.register(new CutTool(sessions));

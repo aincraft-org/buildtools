@@ -14,6 +14,7 @@ import dev.mintychochip.masonry.common.session.PlayerSessionStore;
 import dev.mintychochip.masonry.common.tool.CopyTool;
 import dev.mintychochip.masonry.common.tool.CutTool;
 import dev.mintychochip.masonry.common.tool.FillTool;
+import dev.mintychochip.masonry.common.tool.ExtendTool;
 import dev.mintychochip.masonry.common.tool.MoveTool;
 import dev.mintychochip.masonry.common.tool.PasteTool;
 import dev.mintychochip.masonry.common.tool.ReplaceTool;
@@ -58,6 +59,7 @@ public final class TestHarness {
         this.guard = new OperationGuard(limits);
         this.history = new OperationHistory(32);
         this.registry.register(new ReplaceTool());
+        this.registry.register(new ExtendTool());
         this.registry.register(new FillTool());
         this.registry.register(new CopyTool(sessions));
         this.registry.register(new CutTool(sessions));

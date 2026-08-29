@@ -1,7 +1,7 @@
 # Survival — Living Spec
 
 > Status: active
-> Last updated: 2026-08-19
+> Last updated: 2026-08-29
 > Owners:
 
 ## Intent
@@ -43,7 +43,7 @@ Make every building operation feel like real survival work: players must have th
 
 ## Current
 
-- [x] Inventory cost check for replace, fill, paste
+- [x] Inventory cost check for replace, fill, horizontal extension, paste
 - [x] Refund on undo
 - [x] Permission node per tool
 - [x] Creative bypass
@@ -68,6 +68,7 @@ Make every building operation feel like real survival work: players must have th
 | 2026-08-16 | Claim-provider abstraction, integration in Next | Avoid hard dependency on a single plugin; not in V1 scope |
 | 2026-08-17 | Reach and operation limits are separate configuration values | Prevents confusing interaction reach with the size of an approved edit |
 | 2026-08-17 | Chained operations are charged from their computed plan | Players see and pay for exactly the blocks that will be changed |
+| 2026-08-29 | Extension charges the exact replaceable line preview and records diffs | Keeps scroll-sized building survival-safe and undoable |
 
 ## Open questions
 

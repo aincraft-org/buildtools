@@ -14,10 +14,12 @@ import dev.mintychochip.masonry.api.tool.ToolPreview;
 import dev.mintychochip.masonry.api.tool.ToolRequest;
 import dev.mintychochip.masonry.api.tool.ValidationResult;
 import dev.mintychochip.masonry.api.world.BlockPosition;
+import dev.mintychochip.masonry.api.world.BlockState;
 import dev.mintychochip.masonry.common.blueprint.BlueprintManager;
 import dev.mintychochip.masonry.common.operation.OperationGuard;
 import dev.mintychochip.masonry.common.session.PlayerSession;
 import dev.mintychochip.masonry.common.session.PlayerSessionStore;
+import dev.mintychochip.masonry.common.tool.BlockStates;
 import dev.mintychochip.masonry.common.tool.ToolExecutor;
 import java.util.List;
 import java.util.Map;
@@ -57,10 +59,9 @@ public final class MasonryCommands {
         this.world = Objects.requireNonNull(world, "world");
         this.survival = Objects.requireNonNull(survival, "survival");
     }
-
     /**
-     * Dispatches {@code pos1}, {@code pos2}, {@code replace}, {@code fill}, {@code copy},
-     * {@code paste}, {@code undo}, {@code redo}, and {@code blueprint}.
+     * Dispatches {@code pos1}, {@code pos2}, {@code replace}, {@code fill}, {@code survival_fill},
+     * {@code extend}, {@code copy}, {@code paste}, {@code undo}, {@code redo}, and {@code blueprint}.
      *
      * @param context resolved invocation
      * @return player-facing result (validation and execute content, not merely a handler stub)
@@ -68,7 +69,7 @@ public final class MasonryCommands {
     public CommandResult execute(CommandContext context) {
         Objects.requireNonNull(context, "context");
         if (context.arguments().isEmpty()) {
-            return CommandResult.fail("Usage: /masonry <pos1|pos2|replace|fill|survival_fill|copy|paste|undo|redo|blueprint|wand|previewmode|animation>");
+            return CommandResult.fail("Usage: /masonry <pos1|pos2|replace|fill|survival_fill|extend|copy|paste|undo|redo|blueprint|wand|previewmode|animation>");
         }
         String command = context.argument(0).toLowerCase();
         return switch (command) {
@@ -77,6 +78,7 @@ public final class MasonryCommands {
             case "replace" -> replace(context);
             case "fill" -> fill(context, false);
             case "survival_fill" -> fill(context, true);
+            case "extend" -> extend(context);
             case "copy" -> copy(context);
             case "paste" -> paste(context);
             case "cut" -> runTool(context, "cut", Map.of());
@@ -130,6 +132,49 @@ public final class MasonryCommands {
                 "from", context.argument(1),
                 "to", context.argument(2)));
     }
+    private CommandResult extend(CommandContext context) {
+        if (context.arguments().size() < 2) {
+            return CommandResult.fail("Usage: /masonry extend <block>");
+        }
+        BlockState target;
+        try {
+            target = BlockStates.parse(context.argument(1));
+        } catch (IllegalArgumentException ignored) {
+            return CommandResult.fail("Usage: /masonry extend <block>");
+        }
+        if (target.isAir()) {
+            return CommandResult.fail("Usage: /masonry extend <block>");
+        }
+        BlockPosition endpoint = context.target();
+        if (endpoint == null) {
+            return CommandResult.fail("No extension endpoint");
+        }
+        BlockPosition anchor = context.origin().offset(0, -1, 0);
+        if (!anchor.worldId().equals(endpoint.worldId()) || anchor.y() != endpoint.y()) {
+            return CommandResult.fail("Extension must stay at the standing block height");
+        }
+        if (!world.getBlock(anchor).namespacedKey().equals(target.namespacedKey())) {
+            return CommandResult.fail("Extension must start on a matching block");
+        }
+        int dx = Integer.compare(endpoint.x(), anchor.x());
+        int dz = Integer.compare(endpoint.z(), anchor.z());
+        if (dx != 0 && dz != 0) {
+            return CommandResult.fail("Extension must follow a horizontal direction");
+        }
+        if (dx == 0 && dz == 0) {
+            return CommandResult.fail("Extension must reach a neighboring block");
+        }
+        BlockPosition start = anchor.offset(dx, 0, dz);
+        ToolRequest request = new ToolRequest(
+                context.actorId(),
+                "extend",
+                new CuboidSelection(start, endpoint),
+                Map.of("block", context.argument(1)),
+                null,
+                context.excludedPositions());
+        return dispatch(request, "Extended");
+    }
+
     private CommandResult fill(CommandContext context, boolean soft) {
         if (context.arguments().size() < 2) {
             return CommandResult.fail("Usage: /masonry fill <block>");

@@ -9,8 +9,8 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Per-player pos1/pos2, unnamed clipboard, tool mode, preview mode, and the last executed
- * tool (for repeat). A selection exists only when both corners are set.
+ * Per-player pos1/pos2, unnamed clipboard, tool mode, preview mode, extension intent, and the
+ * last executed tool (for repeat). A selection exists only when both corners are set.
  */
 public final class PlayerSession {
     private BlockPosition pos1;
@@ -19,6 +19,7 @@ public final class PlayerSession {
     private ToolMode mode = ToolMode.FILL;
     private PreviewMode previewMode = PreviewMode.BLOCK_LIGHT_BLUE;
     private boolean previewAnimation = true;
+    private ExtensionPlan extensionPlan;
     private String lastTool;
     private Map<String, String> lastArgs = Map.of();
     /** @return first corner if set */
@@ -94,6 +95,20 @@ public final class PlayerSession {
     public void setPreviewAnimation(boolean previewAnimation) {
         this.previewAnimation = previewAnimation;
     }
+    /** @return the current extension preview intent, if any */
+    public Optional<ExtensionPlan> extensionPlan() {
+        return Optional.ofNullable(extensionPlan);
+    }
+
+    /** @param extensionPlan new extension intent, or {@code null} to clear */
+    public void setExtensionPlan(ExtensionPlan extensionPlan) {
+        this.extensionPlan = extensionPlan;
+    }
+
+    /** Clears the current extension preview intent. */
+    public void clearExtensionPlan() {
+        extensionPlan = null;
+    }
 
     public String lastTool() {
         return lastTool;
@@ -110,7 +125,7 @@ public final class PlayerSession {
         this.lastArgs = args == null ? Map.of() : Map.copyOf(args);
     }
 
-    /** Clears corners, clipboard, mode, and preview mode. */
+    /** Clears corners, clipboard, mode, preview mode, and extension intent. */
     public void clear() {
         pos1 = null;
         pos2 = null;
@@ -118,6 +133,7 @@ public final class PlayerSession {
         mode = ToolMode.FILL;
         previewMode = PreviewMode.BLOCK_LIGHT_BLUE;
         lastTool = null;
+        extensionPlan = null;
         lastArgs = Map.of();
     }
 }
