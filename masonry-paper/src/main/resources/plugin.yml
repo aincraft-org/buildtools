@@ -21,7 +21,7 @@ permissions:
     description: Use /masonry survival_fill and the gadget's safe fill
     default: true
   masonry.tool.extend:
-    description: Extend a matching held block in a horizontal line
+    description: Use brick-token extension mode with an offhand block material
     default: true
   masonry.tool.copy:
     description: Use /masonry copy

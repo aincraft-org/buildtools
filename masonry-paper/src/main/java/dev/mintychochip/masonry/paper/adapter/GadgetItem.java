@@ -52,4 +52,20 @@ public final class GadgetItem {
                 new NamespacedKey(plugin, GADGET_KEY),
                 PersistentDataType.BYTE);
     }
+    /**
+     * @param itemType item material to check
+     * @return {@code true} only for the ordinary, singular brick item used to arm extension mode
+     */
+    public static boolean isExtensionToken(Material itemType) {
+        return itemType == Material.BRICK;
+    }
+
+    /**
+     * @param item item to check
+     * @return {@code true} only for the ordinary, singular brick item used to arm extension mode
+     */
+    public static boolean isExtensionToken(ItemStack item) {
+        return item != null && isExtensionToken(item.getType());
+    }
+
 }

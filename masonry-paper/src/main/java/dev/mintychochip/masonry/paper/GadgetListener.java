@@ -110,18 +110,25 @@ public final class GadgetListener implements Listener {
     }
 
     /**
-     * Uses ordinary placeable blocks as an extension tool. A valid support block under the
-     * player's feet arms a one-block extension; a plan created by scrolling is committed here.
+     * Uses the ordinary brick item as an extension-mode token. The offhand placeable block
+     * supplies the material; the token itself is never placed or consumed.
      */
     @EventHandler
     public void onBrickInteract(PlayerInteractEvent event) {
-        if (event.getHand() != EquipmentSlot.HAND
-                || (event.getAction() != Action.RIGHT_CLICK_AIR
-                        && event.getAction() != Action.RIGHT_CLICK_BLOCK)) {
+        Action action = event.getAction();
+        if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) {
             return;
         }
         Player player = event.getPlayer();
-        if (!player.hasPermission("masonry.tool.extend")) {
+        if (!player.hasPermission("masonry.tool.extend")
+                || !GadgetItem.isExtensionToken(player.getInventory().getItemInMainHand())) {
+            return;
+        }
+        if (event.getHand() == EquipmentSlot.OFF_HAND) {
+            event.setCancelled(true);
+            return;
+        }
+        if (event.getHand() != EquipmentSlot.HAND) {
             return;
         }
         long now = player.getWorld().getFullTime();
@@ -135,6 +142,7 @@ public final class GadgetListener implements Listener {
         if (plan == null) {
             plan = createExtensionPlan(player, 1, now);
             if (plan == null) {
+                event.setCancelled(true);
                 return;
             }
             session.setExtensionPlan(plan);
@@ -204,7 +212,7 @@ public final class GadgetListener implements Listener {
     }
 
     private ExtensionPlan createExtensionPlan(Player player, int length, long now) {
-        BlockState block = heldBlock(player);
+        BlockState block = offhandBlock(player);
         if (block == null) {
             return null;
         }
@@ -227,14 +235,15 @@ public final class GadgetListener implements Listener {
     }
 
     private boolean matchesPlayer(Player player, ExtensionPlan plan) {
-        BlockState block = heldBlock(player);
-        return plan.anchor().worldId().equals(player.getWorld().getName())
+        BlockState block = offhandBlock(player);
+        return GadgetItem.isExtensionToken(player.getInventory().getItemInMainHand())
+                && plan.anchor().worldId().equals(player.getWorld().getName())
                 && block != null
                 && block.namespacedKey().equals(plan.block().namespacedKey());
     }
 
-    private BlockState heldBlock(Player player) {
-        ItemStack item = player.getInventory().getItemInMainHand();
+    private BlockState offhandBlock(Player player) {
+        ItemStack item = player.getInventory().getItemInOffHand();
         if (item == null || item.getType().isAir() || !item.getType().isBlock()) {
             return null;
         }

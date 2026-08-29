@@ -82,7 +82,7 @@ public final class HoverPreviewDriver implements Runnable {
                     continue;
                 }
                 String signature = "extend|" + extension.anchor() + "|" + extension.direction()
-                        + "|" + extension.length() + "|" + extension.block();
+                        + "|" + extension.length() + "|" + extension.width() + "|" + extension.block();
                 if (signature.equals(shownRegions.put(player.getUniqueId(), signature))) {
                     continue;
                 }
@@ -132,18 +132,22 @@ public final class HoverPreviewDriver implements Runnable {
         }
     }
     private boolean matchesExtension(Player player, ExtensionPlan plan) {
-        ItemStack item = player.getInventory().getItemInMainHand();
-        if (item == null || item.getType().isAir() || !item.getType().isBlock()) {
+        ItemStack mainHand = player.getInventory().getItemInMainHand();
+        ItemStack offHand = player.getInventory().getItemInOffHand();
+        if (!GadgetItem.isExtensionToken(mainHand)
+                || offHand == null
+                || offHand.getType().isAir()
+                || !offHand.getType().isBlock()) {
             return false;
         }
         return plan.anchor().worldId().equals(player.getWorld().getName())
-                && item.getType().getKey().toString().equals(plan.block().namespacedKey());
+                && offHand.getType().getKey().toString().equals(plan.block().namespacedKey());
     }
 
     /**
      * Builds a clipboard whose cells are every block in the plan's selection, all the plan's
-     * block state, keyed by offset from the selection minimum — so {@code showGhost} renders
-     * the extension as solid brick ghosts.
+     * block state, keyed by offset from the selection minimum — so {@code showGhost} renders the
+     * extension as solid block ghosts.
      */
     private static Clipboard ghostOf(ExtensionPlan plan) {
         CuboidSelection selection = plan.selection();

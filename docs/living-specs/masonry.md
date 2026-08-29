@@ -65,7 +65,7 @@ Success looks like: a server owner can install the plugin, players can quickly s
 - [x] gadget — `/masonry wand` Masonry Gadget item: shift-click pos1/paste, right-click pos2+apply, mode cycling, offhand material
 
 ### Current notes
-V1 command surface is `/masonry` (pos1/pos2, replace, fill, survival_fill, copy, paste, undo/redo, blueprint save/load/list/delete). Defaults: `interactionDistance=6`, `selectionExtent=64`, `maxOperationBlocks=32768`. Held-block extension is a separate input path: it starts from a matching block under the player; right-click arms one block, scroll changes the horizontal preview length, and right-click commits it through the normal survival/undo lifecycle. Live Paper playthrough is not required to mark Current done. The gadget (2026-08-24 design) adds a shift-click item UI over the same dispatcher; destructive `fill`/`replace`/`paste` are op-only while `survival_fill`, `copy`, and the gadget are default-allowed.
+V1 command surface is `/masonry` (pos1/pos2, replace, fill, survival_fill, copy, paste, undo/redo, blueprint save/load/list/delete). Defaults: `interactionDistance=6`, `selectionExtent=64`, `maxOperationBlocks=32768`. Held-block extension is a separate input path: hold the ordinary `minecraft:brick` item in the main hand as a mode token and a placeable block in the offhand as the material; right-click arms one row, repeated right-clicks grow length, scroll changes width, and sneak+right-click commits through the normal survival/undo lifecycle. Live Paper playthrough is not required to mark Current done. The gadget (2026-08-24 design) adds a shift-click item UI over the same dispatcher; destructive `fill`/`replace`/`paste` are op-only while `survival_fill`, `copy`, and the gadget are default-allowed.
 
 ## Next
 

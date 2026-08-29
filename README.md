@@ -2,7 +2,7 @@
 
 **Survival-friendly building assistant for Paper/Spigot.**
 
-Masonry gives players a set of survival-mode building tools — selection, replace, fill, horizontal brick extension, copy, paste, undo/redo, blueprints, and a wand gadget — with live previews, inventory costs, and permission checks. It is a server-side plugin.
+Masonry gives players a set of survival-mode building tools — selection, replace, fill, horizontal extension, copy, paste, undo/redo, blueprints, and a wand gadget — with live previews, inventory costs, and permission checks. It is a server-side plugin.
 
 Created by **mintychochip**.
 
@@ -25,7 +25,7 @@ Created by **mintychochip**.
   - Set selection corners: `/masonry pos1` and `/masonry pos2`
   - Replace blocks: `/masonry replace <from> <to>`
   - Fill a region: `/masonry fill <block>`
-  - Extend a matching block in the facing direction: hold the block, right-click to arm, scroll to size, right-click to commit
+  - Extend from the aimed block: hold `minecraft:brick` in the main hand as the mode token and a placeable block in the offhand as the material, right-click once to arm, right-click again to grow rows, scroll to widen, sneak+right-click to commit
   - Copy a region: `/masonry copy`
   - Paste it: `/masonry paste`
   - Undo: `/masonry undo`
@@ -38,7 +38,7 @@ The root command is `/masonry`. Subcommands: `pos1`, `pos2`, `replace`, `fill`, 
 |---|---|---|
 | `masonry.command` | `true` | Use the `/masonry` command root |
 | `masonry.tool.survival_fill` | `true` | Use `/masonry survival_fill` and the gadget's safe fill |
-| `masonry.tool.extend` | `true` | Extend the matching held block in a horizontal line |
+| `masonry.tool.extend` | `true` | Use brick-token extension mode; the offhand placeable block supplies the material |
 | `masonry.tool.copy` | `true` | Use `/masonry copy` |
 | `masonry.tool.fill` | `op` | Use `/masonry fill` (overwrites any block) |
 | `masonry.tool.replace` | `op` | Use `/masonry replace` (replaces matched blocks) |

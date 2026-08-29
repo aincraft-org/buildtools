@@ -130,6 +130,38 @@ class ExtendToolTest {
     }
 
     @Test
+    void extendWithExplicitDirectionCommitsExactlyThePlanSelection() {
+        TestHarness harness = new TestHarness();
+        BlockPosition feet = harness.pos(0, 65, 5);
+        BlockPosition anchor = harness.pos(0, 64, 5);
+        BlockState bricks = BlockState.of("minecraft:bricks");
+        dev.mintychochip.masonry.common.session.ExtensionPlan plan =
+                new dev.mintychochip.masonry.common.session.ExtensionPlan(
+                        anchor, new dev.mintychochip.masonry.api.clipboard.BlockOffset(-1, 0, 0),
+                        bricks, 3, 3, 0);
+        harness.survival.give(TestHarness.ACTOR, bricks.itemKey(), 9);
+
+        // Reproduce extensionContext: origin = plan anchor, target = region.max, explicit
+        // direction args, so the command must rebuild the exact plan selection.
+        dev.mintychochip.masonry.api.selection.CuboidSelection region = plan.selection();
+        CommandResult result = harness.commands.execute(
+                harness.command(anchor, region.max(),
+                        "extend", bricks.namespacedKey(),
+                        Integer.toString(plan.length()), Integer.toString(plan.width()),
+                        Integer.toString(plan.direction().x()),
+                        Integer.toString(plan.direction().z())));
+
+        assertTrue(result.success(), result.message());
+        assertEquals(region.volume(), result.preview().affectedCount());
+        // Every cell in the plan selection (including the -X, width-3 plane) must be filled.
+        for (dev.mintychochip.masonry.api.world.BlockPosition position : region.positions()) {
+            assertEquals(bricks, harness.world.getBlock(position), "cell " + position);
+        }
+        // The anchor itself is outside the selection and must remain untouched.
+        assertEquals(BlockState.AIR, harness.world.getBlock(anchor));
+    }
+
+    @Test
     void extendRejectsBlockedPlaneCell() {
         TestHarness harness = new TestHarness();
         BlockPosition feet = harness.pos(0, 65, 0);
