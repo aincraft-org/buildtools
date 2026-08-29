@@ -110,8 +110,8 @@ public final class GadgetListener implements Listener {
     }
 
     /**
-     * Uses the ordinary brick item as an extension-mode token. The offhand placeable block
-     * supplies the material; the token itself is never placed or consumed.
+     * Uses the ordinary brick item as an extension-mode token. The aimed block supplies the
+     * material; matching placeable items are charged from the player's inventory.
      */
     @EventHandler
     public void onBrickInteract(PlayerInteractEvent event) {
@@ -212,12 +212,12 @@ public final class GadgetListener implements Listener {
     }
 
     private ExtensionPlan createExtensionPlan(Player player, int length, long now) {
-        BlockState block = offhandBlock(player);
-        if (block == null) {
-            return null;
-        }
         BlockPosition aimed = targetOf(player);
         if (aimed == null) {
+            return null;
+        }
+        BlockState block = world.getBlock(aimed);
+        if (block == null || block.isAir()) {
             return null;
         }
         // Aim anchor: the block the player is looking at; direction away from the player.
@@ -235,19 +235,8 @@ public final class GadgetListener implements Listener {
     }
 
     private boolean matchesPlayer(Player player, ExtensionPlan plan) {
-        BlockState block = offhandBlock(player);
         return GadgetItem.isExtensionToken(player.getInventory().getItemInMainHand())
-                && plan.anchor().worldId().equals(player.getWorld().getName())
-                && block != null
-                && block.namespacedKey().equals(plan.block().namespacedKey());
-    }
-
-    private BlockState offhandBlock(Player player) {
-        ItemStack item = player.getInventory().getItemInOffHand();
-        if (item == null || item.getType().isAir() || !item.getType().isBlock()) {
-            return null;
-        }
-        return BlockState.of(item.getType().getKey().toString());
+                && plan.anchor().worldId().equals(player.getWorld().getName());
     }
 
     private static int slotDelta(int previousSlot, int newSlot) {

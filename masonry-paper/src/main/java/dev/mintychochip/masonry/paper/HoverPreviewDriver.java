@@ -132,16 +132,8 @@ public final class HoverPreviewDriver implements Runnable {
         }
     }
     private boolean matchesExtension(Player player, ExtensionPlan plan) {
-        ItemStack mainHand = player.getInventory().getItemInMainHand();
-        ItemStack offHand = player.getInventory().getItemInOffHand();
-        if (!GadgetItem.isExtensionToken(mainHand)
-                || offHand == null
-                || offHand.getType().isAir()
-                || !offHand.getType().isBlock()) {
-            return false;
-        }
-        return plan.anchor().worldId().equals(player.getWorld().getName())
-                && offHand.getType().getKey().toString().equals(plan.block().namespacedKey());
+        return GadgetItem.isExtensionToken(player.getInventory().getItemInMainHand())
+                && plan.anchor().worldId().equals(player.getWorld().getName());
     }
 
     /**

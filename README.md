@@ -25,7 +25,7 @@ Created by **mintychochip**.
   - Set selection corners: `/masonry pos1` and `/masonry pos2`
   - Replace blocks: `/masonry replace <from> <to>`
   - Fill a region: `/masonry fill <block>`
-  - Extend from the aimed block: hold `minecraft:brick` in the main hand as the mode token and a placeable block in the offhand as the material, right-click once to arm, right-click again to grow rows, scroll to widen, sneak+right-click to commit
+  - Extend the block you are aiming at: hold `minecraft:brick` in the main hand as the mode token, right-click once to arm, right-click again to grow rows, scroll to widen, sneak+right-click to commit; matching placeable blocks are charged from your inventory
   - Copy a region: `/masonry copy`
   - Paste it: `/masonry paste`
   - Undo: `/masonry undo`
@@ -38,7 +38,7 @@ The root command is `/masonry`. Subcommands: `pos1`, `pos2`, `replace`, `fill`, 
 |---|---|---|
 | `masonry.command` | `true` | Use the `/masonry` command root |
 | `masonry.tool.survival_fill` | `true` | Use `/masonry survival_fill` and the gadget's safe fill |
-| `masonry.tool.extend` | `true` | Use brick-token extension mode; the offhand placeable block supplies the material |
+| `masonry.tool.extend` | `true` | Use brick-token extension mode; the aimed block supplies the material from inventory |
 | `masonry.tool.copy` | `true` | Use `/masonry copy` |
 | `masonry.tool.fill` | `op` | Use `/masonry fill` (overwrites any block) |
 | `masonry.tool.replace` | `op` | Use `/masonry replace` (replaces matched blocks) |
