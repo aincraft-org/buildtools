@@ -94,7 +94,7 @@ public final class MasonryPlugin extends JavaPlugin implements Listener {
         this.worldAccess = new MasonryWorldAccess(getServer(), getLogger());
         this.survivalTransaction = new PaperSurvivalTransaction(getServer());
         this.taskScheduler = new PaperTaskScheduler(this);
-        this.hoverPreviews = new HoverPreviewDriver(this, sessions, limits, previewRenderer);
+        this.hoverPreviews = new HoverPreviewDriver(this, sessions, limits, worldAccess, previewRenderer);
         this.hoverPreviews.start();
         BlueprintManager blueprints =
                 new BlueprintManager(new FileBlueprintStore(getDataFolder().toPath().resolve("blueprints")), sessions);

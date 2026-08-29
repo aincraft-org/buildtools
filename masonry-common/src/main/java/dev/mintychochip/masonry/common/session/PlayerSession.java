@@ -20,6 +20,7 @@ public final class PlayerSession {
     private PreviewMode previewMode = PreviewMode.BLOCK_LIGHT_BLUE;
     private boolean previewAnimation = true;
     private ExtensionPlan extensionPlan;
+    private boolean extensionBlocked;
     private String lastTool;
     private Map<String, String> lastArgs = Map.of();
     /** @return first corner if set */
@@ -103,11 +104,24 @@ public final class PlayerSession {
     /** @param extensionPlan new extension intent, or {@code null} to clear */
     public void setExtensionPlan(ExtensionPlan extensionPlan) {
         this.extensionPlan = extensionPlan;
+        if (extensionPlan != null) {
+            extensionBlocked = false;
+        }
     }
 
     /** Clears the current extension preview intent. */
     public void clearExtensionPlan() {
         extensionPlan = null;
+    }
+
+    /** @return whether extension auto-arming is blocked until new input */
+    public boolean extensionBlocked() {
+        return extensionBlocked;
+    }
+
+    /** @param extensionBlocked whether extension auto-arming is blocked */
+    public void setExtensionBlocked(boolean extensionBlocked) {
+        this.extensionBlocked = extensionBlocked;
     }
 
     public String lastTool() {
@@ -134,6 +148,7 @@ public final class PlayerSession {
         previewMode = PreviewMode.BLOCK_LIGHT_BLUE;
         lastTool = null;
         extensionPlan = null;
+        extensionBlocked = false;
         lastArgs = Map.of();
     }
 }

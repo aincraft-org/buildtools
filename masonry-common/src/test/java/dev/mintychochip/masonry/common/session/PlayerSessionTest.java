@@ -1,6 +1,7 @@
 package dev.mintychochip.masonry.common.session;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.mintychochip.masonry.api.clipboard.BlockOffset;
@@ -30,5 +31,15 @@ class PlayerSessionTest {
         session.clear();
 
         assertTrue(session.extensionPlan().isEmpty());
+    }
+
+    @Test
+    void clearResetsExtensionBlockedState() {
+        PlayerSession session = new PlayerSession();
+        session.setExtensionBlocked(true);
+
+        assertTrue(session.extensionBlocked());
+        session.clear();
+        assertFalse(session.extensionBlocked());
     }
 }

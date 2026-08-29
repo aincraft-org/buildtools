@@ -10,6 +10,7 @@ import dev.mintychochip.masonry.api.world.BlockPosition;
 import dev.mintychochip.masonry.common.session.ExtensionPlan;
 import dev.mintychochip.masonry.common.session.PlayerSession;
 import dev.mintychochip.masonry.common.session.PlayerSessionStore;
+import dev.mintychochip.masonry.api.service.WorldAccess;
 import dev.mintychochip.masonry.paper.adapter.PaperPreviewRenderer;
 import java.util.LinkedHashMap;
 import java.util.HashMap;
@@ -38,6 +39,7 @@ public final class HoverPreviewDriver implements Runnable {
     private final JavaPlugin plugin;
     private final PlayerSessionStore sessions;
     private final OperationLimits limits;
+    private final WorldAccess world;
     private final PaperPreviewRenderer previews;
     private final Map<UUID, String> shownRegions = new HashMap<>();
 
@@ -45,16 +47,23 @@ public final class HoverPreviewDriver implements Runnable {
             JavaPlugin plugin,
             PlayerSessionStore sessions,
             OperationLimits limits,
+            WorldAccess world,
             PaperPreviewRenderer previews) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.sessions = Objects.requireNonNull(sessions, "sessions");
         this.limits = Objects.requireNonNull(limits, "limits");
+        this.world = Objects.requireNonNull(world, "world");
         this.previews = Objects.requireNonNull(previews, "previews");
     }
 
     /** Starts the driver on the Bukkit scheduler. */
     public void start() {
         plugin.getServer().getScheduler().runTaskTimer(plugin, this, DELAY_TICKS, PERIOD_TICKS);
+    }
+
+    static boolean shouldAutoArmExtension(
+            boolean hasPlan, boolean blocked, boolean hasPermission, boolean holdsBrick) {
+        return !hasPlan && !blocked && hasPermission && holdsBrick;
     }
 
     /** Drops hover state for a quitting player so nothing lingers. */
@@ -70,6 +79,23 @@ public final class HoverPreviewDriver implements Runnable {
             ActorId actor = new ActorId(player.getUniqueId());
             PlayerSession session = sessions.session(actor);
             ExtensionPlan extension = session.extensionPlan().orElse(null);
+            ItemStack mainHand = player.getInventory().getItemInMainHand();
+            if (shouldAutoArmExtension(
+                    extension != null,
+                    session.extensionBlocked(),
+                    player.hasPermission("masonry.tool.extend"),
+                    GadgetItem.isExtensionToken(mainHand))) {
+                extension = GadgetListener.createExtensionPlan(
+                        player,
+                        1,
+                        player.getWorld().getFullTime(),
+                        null,
+                        limits,
+                        world);
+                if (extension != null) {
+                    session.setExtensionPlan(extension);
+                }
+            }
             if (extension != null) {
                 if (!player.hasPermission("masonry.tool.extend")
                         || !matchesExtension(player, extension)) {

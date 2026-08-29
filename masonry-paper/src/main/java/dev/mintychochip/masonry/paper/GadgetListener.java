@@ -153,6 +153,7 @@ public final class GadgetListener implements Listener {
         PlayerSession session = sessions.session(actorOf(player));
         ExtensionPlan plan = currentExtensionPlan(player, session);
         if (!continuing) {
+            session.setExtensionBlocked(false);
             extensionProgress.put(playerId, 0);
             BlockFace clickedFace =
                     event.getClickedBlock() == null ? null : event.getBlockFace();
@@ -185,6 +186,7 @@ public final class GadgetListener implements Listener {
         int cycleLength = extensionCycleLength(plan.length(), 0, availableLength);
         if (cycleLength == 0) {
             session.clearExtensionPlan();
+            session.setExtensionBlocked(true);
             extensionProgress.put(playerId, -1);
             return;
         }
@@ -192,6 +194,7 @@ public final class GadgetListener implements Listener {
         CommandResult result = commands.execute(extensionContext(player, segment));
         if (!result.success()) {
             session.clearExtensionPlan();
+            session.setExtensionBlocked(false);
             clearExtensionState(playerId);
             player.sendActionBar(Component.text(result.message(), NamedTextColor.RED));
             return;
@@ -200,6 +203,7 @@ public final class GadgetListener implements Listener {
         int nextCompleted = completed + cycleLength;
         if (cycleLength >= availableLength) {
             session.clearExtensionPlan();
+            session.setExtensionBlocked(true);
             extensionProgress.put(playerId, -1);
             player.sendActionBar(Component.text(
                     "Extension: max length reached", NamedTextColor.AQUA));
@@ -250,6 +254,7 @@ public final class GadgetListener implements Listener {
                 armExtensionPlan(player, now);
             } else {
                 session.clearExtensionPlan();
+                session.setExtensionBlocked(false);
                 clearExtensionState(playerId);
             }
             return;
@@ -257,6 +262,7 @@ public final class GadgetListener implements Listener {
 
         ExtensionPlan plan = session.extensionPlan().orElse(null);
         if (plan == null) {
+            session.setExtensionBlocked(false);
             clearExtensionState(playerId);
             plan = createExtensionPlan(player, 1, now);
             if (plan == null) {
@@ -289,6 +295,7 @@ public final class GadgetListener implements Listener {
         UUID playerId = player.getUniqueId();
         clearExtensionState(playerId);
         PlayerSession session = sessions.session(actorOf(player));
+        session.setExtensionBlocked(false);
         ExtensionPlan plan = createExtensionPlan(player, 1, now);
         if (plan == null) {
             session.clearExtensionPlan();
@@ -381,6 +388,16 @@ public final class GadgetListener implements Listener {
 
     private ExtensionPlan createExtensionPlan(
             Player player, int length, long now, BlockFace clickedFace) {
+        return createExtensionPlan(player, length, now, clickedFace, limits, world);
+    }
+
+    static ExtensionPlan createExtensionPlan(
+            Player player,
+            int length,
+            long now,
+            BlockFace clickedFace,
+            OperationLimits limits,
+            WorldAccess world) {
         RayTraceResult hit = player.rayTraceBlocks(limits.interactionDistance());
         Block block = hit != null ? hit.getHitBlock() : null;
         if (block == null) {
