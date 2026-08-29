@@ -294,17 +294,19 @@ public final class GadgetListener implements Listener {
                 && (clickedFace.getModX() != 0 || clickedFace.getModZ() != 0)) {
             return new BlockOffset(clickedFace.getModX(), 0, clickedFace.getModZ());
         }
-        if (Math.abs(targetX) >= Math.abs(targetZ) && targetX != 0) {
-            return new BlockOffset(Integer.compare(targetX, 0), 0, 0);
-        }
-        if (targetZ != 0) {
-            return new BlockOffset(0, 0, Integer.compare(targetZ, 0));
-        }
+        // Top, bottom, and unknown faces follow horizontal aim; target direction only handles a
+        // perfectly vertical ray with no horizontal look vector.
         if (Math.abs(viewX) >= Math.abs(viewZ) && viewX != 0.0) {
             return new BlockOffset(Double.compare(viewX, 0.0), 0, 0);
         }
         if (viewZ != 0.0) {
             return new BlockOffset(0, 0, Double.compare(viewZ, 0.0));
+        }
+        if (Math.abs(targetX) >= Math.abs(targetZ) && targetX != 0) {
+            return new BlockOffset(Integer.compare(targetX, 0), 0, 0);
+        }
+        if (targetZ != 0) {
+            return new BlockOffset(0, 0, Integer.compare(targetZ, 0));
         }
         return new BlockOffset(1, 0, 0);
     }

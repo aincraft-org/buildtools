@@ -9,10 +9,17 @@ import org.junit.jupiter.api.Test;
 class GadgetListenerTest {
 
     @Test
-    void topFaceUsesDominantHorizontalPlayerToTargetDirection() {
+    void topFaceUsesHorizontalAimBeforeTargetDirection() {
         assertEquals(
-                new BlockOffset(0, 0, 1),
-                GadgetListener.extensionDirection(BlockFace.UP, 0, 3, 0.8, -0.9));
+                new BlockOffset(1, 0, 0),
+                GadgetListener.extensionDirection(BlockFace.UP, 0, 3, 0.9, -0.2));
+    }
+
+    @Test
+    void topFaceFallsBackToTargetDirectionWhenHorizontalAimIsZero() {
+        assertEquals(
+                new BlockOffset(0, 0, -1),
+                GadgetListener.extensionDirection(BlockFace.UP, 0, -3, 0.0, 0.0));
     }
 
     @Test
