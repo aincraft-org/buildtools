@@ -279,16 +279,26 @@ public final class GadgetListener implements Listener {
             return null;
         }
         BlockFace face = clickedFace != null ? clickedFace : hit.getHitBlockFace();
+        int targetX = block.getX() - player.getLocation().getBlockX();
+        int targetZ = block.getZ() - player.getLocation().getBlockZ();
         var view = player.getLocation().getDirection();
-        BlockOffset direction = extensionDirection(face, view.getX(), view.getZ());
+        BlockOffset direction =
+                extensionDirection(face, targetX, targetZ, view.getX(), view.getZ());
         return new ExtensionPlan(aimed, direction, state, length, now);
     }
 
-    static BlockOffset extensionDirection(BlockFace clickedFace, double viewX, double viewZ) {
+    static BlockOffset extensionDirection(
+            BlockFace clickedFace, int targetX, int targetZ, double viewX, double viewZ) {
         if (clickedFace != null
                 && clickedFace.getModY() == 0
                 && (clickedFace.getModX() != 0 || clickedFace.getModZ() != 0)) {
             return new BlockOffset(clickedFace.getModX(), 0, clickedFace.getModZ());
+        }
+        if (Math.abs(targetX) >= Math.abs(targetZ) && targetX != 0) {
+            return new BlockOffset(Integer.compare(targetX, 0), 0, 0);
+        }
+        if (targetZ != 0) {
+            return new BlockOffset(0, 0, Integer.compare(targetZ, 0));
         }
         if (Math.abs(viewX) >= Math.abs(viewZ) && viewX != 0.0) {
             return new BlockOffset(Double.compare(viewX, 0.0), 0, 0);
