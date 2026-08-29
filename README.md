@@ -25,7 +25,7 @@ Created by **mintychochip**.
   - Set selection corners: `/masonry pos1` and `/masonry pos2`
   - Replace blocks: `/masonry replace <from> <to>`
   - Fill a region: `/masonry fill <block>`
-  - Extend the block you are aiming at: hold `minecraft:brick` in the main hand to show the preview, right-click to grow one row, sneak-scroll to extend or retract, normal scroll to change hotbar slots, and sneak+right-click to commit; matching placeable blocks are charged from your inventory
+  - Extend the block you are aiming at: hold `minecraft:brick` in the main hand to show the preview, right-click to grow one row, sneak-scroll to extend or retract, normal scroll to change hotbar slots, and sneak+right-click to commit; matching placeable blocks are charged from your inventory. Top-face clicks extend horizontally along your aim; side-face clicks extend out from that face.
   - Copy a region: `/masonry copy`
   - Paste it: `/masonry paste`
   - Undo: `/masonry undo`

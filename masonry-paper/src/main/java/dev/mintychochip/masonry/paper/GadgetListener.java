@@ -133,14 +133,22 @@ public final class GadgetListener implements Listener {
         }
         long now = player.getWorld().getFullTime();
         PlayerSession session = sessions.session(actorOf(player));
+        BlockFace clickedFace =
+                event.getClickedBlock() == null ? null : event.getBlockFace();
         ExtensionPlan plan = currentExtensionPlan(player, session);
         if (player.isSneaking()) {
+            if (plan != null) {
+                ExtensionPlan clickedPlan = createExtensionPlan(player, plan.length(), now, clickedFace);
+                if (clickedPlan != null) {
+                    plan = clickedPlan.withWidth(plan.width(), now);
+                }
+            }
             commitPlan(player, plan);
             event.setCancelled(true);
             return;
         }
         if (plan == null) {
-            plan = createExtensionPlan(player, 1, now);
+            plan = createExtensionPlan(player, 1, now, clickedFace);
             if (plan == null) {
                 event.setCancelled(true);
                 return;
@@ -148,7 +156,11 @@ public final class GadgetListener implements Listener {
             session.setExtensionPlan(plan);
             player.sendActionBar(Component.text("Extension: 1 x 1", NamedTextColor.AQUA));
         } else {
-            // Click-to-grow: extend the length by one row per press.
+            // Retarget to the clicked face before growing by one row.
+            ExtensionPlan clickedPlan = createExtensionPlan(player, plan.length(), now, clickedFace);
+            if (clickedPlan != null) {
+                plan = clickedPlan.withWidth(plan.width(), now);
+            }
             plan = plan.withLength(
                     Math.min(limits.selectionExtent(), plan.length() + 1), now);
             session.setExtensionPlan(plan);
@@ -250,26 +262,41 @@ public final class GadgetListener implements Listener {
     }
 
     private ExtensionPlan createExtensionPlan(Player player, int length, long now) {
-        BlockPosition aimed = targetOf(player);
-        if (aimed == null) {
+        return createExtensionPlan(player, length, now, null);
+    }
+
+    private ExtensionPlan createExtensionPlan(
+            Player player, int length, long now, BlockFace clickedFace) {
+        RayTraceResult hit = player.rayTraceBlocks(limits.interactionDistance());
+        Block block = hit != null ? hit.getHitBlock() : null;
+        if (block == null) {
             return null;
         }
-        BlockState block = world.getBlock(aimed);
-        if (block == null || block.isAir()) {
+        BlockPosition aimed =
+                new BlockPosition(block.getWorld().getName(), block.getX(), block.getY(), block.getZ());
+        BlockState state = world.getBlock(aimed);
+        if (state == null || state.isAir()) {
             return null;
         }
-        // Aim anchor: the block the player is looking at; direction away from the player.
-        int offsetX = aimed.x() - player.getLocation().getBlockX();
-        int offsetZ = aimed.z() - player.getLocation().getBlockZ();
-        BlockOffset direction;
-        if (Math.abs(offsetX) >= Math.abs(offsetZ) && offsetX != 0) {
-            direction = new BlockOffset(Integer.compare(offsetX, 0), 0, 0);
-        } else if (offsetZ != 0) {
-            direction = new BlockOffset(0, 0, Integer.compare(offsetZ, 0));
-        } else {
-            direction = new BlockOffset(1, 0, 0);
+        BlockFace face = clickedFace != null ? clickedFace : hit.getHitBlockFace();
+        var view = player.getLocation().getDirection();
+        BlockOffset direction = extensionDirection(face, view.getX(), view.getZ());
+        return new ExtensionPlan(aimed, direction, state, length, now);
+    }
+
+    static BlockOffset extensionDirection(BlockFace clickedFace, double viewX, double viewZ) {
+        if (clickedFace != null
+                && clickedFace.getModY() == 0
+                && (clickedFace.getModX() != 0 || clickedFace.getModZ() != 0)) {
+            return new BlockOffset(clickedFace.getModX(), 0, clickedFace.getModZ());
         }
-        return new ExtensionPlan(aimed, direction, block, length, now);
+        if (Math.abs(viewX) >= Math.abs(viewZ) && viewX != 0.0) {
+            return new BlockOffset(Double.compare(viewX, 0.0), 0, 0);
+        }
+        if (viewZ != 0.0) {
+            return new BlockOffset(0, 0, Double.compare(viewZ, 0.0));
+        }
+        return new BlockOffset(1, 0, 0);
     }
 
     private boolean matchesPlayer(Player player, ExtensionPlan plan) {

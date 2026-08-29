@@ -32,8 +32,8 @@ import org.bukkit.util.RayTraceResult;
  * prevents resending packet previews while the player merely stands still.
  */
 public final class HoverPreviewDriver implements Runnable {
-    private static final long DELAY_TICKS = 8L;
-    private static final long PERIOD_TICKS = 4L;
+    private static final long DELAY_TICKS = 1L;
+    private static final long PERIOD_TICKS = 1L;
 
     private final JavaPlugin plugin;
     private final PlayerSessionStore sessions;

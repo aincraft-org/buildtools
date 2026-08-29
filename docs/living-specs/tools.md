@@ -43,7 +43,7 @@ Provide a consistent, extensible set of building operations that all share the s
 - Connected-block tools use bounded six-directional BFS/flood-fill traversal with a visited set.
 - Chaining stops at `max_operation_blocks`, `max_chain_distance`, unloaded/forbidden areas, or a non-matching block.
 - A chain preview is calculated before mutation and displays the affected outline, count, and resource cost.
-- Horizontal extension uses the ordinary `minecraft:brick` item as a main-hand mode token, copies the aimed block state, charges matching placeable items from the player's inventory, shows a preview while held, and uses sneak-scroll for bounded length adjustment before commit.
+  - Horizontal extension uses the ordinary `minecraft:brick` item as a main-hand mode token, copies the aimed block state, charges matching placeable items from the player's inventory, shows a preview while held, uses sneak-scroll for bounded length adjustment before commit, and resolves direction from the clicked face: top-face clicks follow horizontal aim while side-face clicks extend out from that face.
 
 ## Current
 
@@ -53,7 +53,7 @@ Provide a consistent, extensible set of building operations that all share the s
 - [x] Copy tool (region to clipboard)
 - [x] Paste tool (clipboard to world)
 - [x] Undo/redo
-- [x] Horizontal extension from the brick mode token with aimed-block material, held preview, and sneak-scroll length adjustment
+  - Horizontal extension from the brick mode token with aimed-block material, held preview, sneak-scroll length adjustment, and clicked-face direction
 
 ## Next
 
