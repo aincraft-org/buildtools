@@ -34,6 +34,7 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -52,7 +53,10 @@ public final class GadgetListener implements Listener {
     private final WorldAccess world;
     private final SurvivalTransaction survival;
     private final Map<UUID, Long> lastRightClick = new HashMap<>();
+    private final Map<UUID, Integer> extensionProgress = new HashMap<>();
+    private final Map<UUID, Long> extensionLastInputTick = new HashMap<>();
     private static final long REPEAT_WINDOW_TICKS = 6L;
+    private static final long EXTENSION_HOLD_GAP_TICKS = 6L;
 
     public GadgetListener(
             JavaPlugin plugin,
@@ -112,6 +116,8 @@ public final class GadgetListener implements Listener {
     /**
      * Uses the ordinary brick item as an extension-mode token. The aimed block supplies the
      * material; matching placeable items are charged from the player's inventory.
+     * Repeated right-click input continues from the previous tip until input stops or the
+     * interaction-distance limit is reached.
      */
     @EventHandler
     public void onBrickInteract(PlayerInteractEvent event) {
@@ -132,39 +138,86 @@ public final class GadgetListener implements Listener {
             return;
         }
         long now = player.getWorld().getFullTime();
+        UUID playerId = player.getUniqueId();
+        Integer completed = extensionProgress.get(playerId);
+        Long lastInput = extensionLastInputTick.get(playerId);
+        boolean continuing = completed != null
+                && lastInput != null
+                && now >= lastInput
+                && now - lastInput <= EXTENSION_HOLD_GAP_TICKS;
+        if (completed != null && completed < 0 && continuing) {
+            event.setCancelled(true);
+            return;
+        }
+
         PlayerSession session = sessions.session(actorOf(player));
-        BlockFace clickedFace =
-                event.getClickedBlock() == null ? null : event.getBlockFace();
         ExtensionPlan plan = currentExtensionPlan(player, session);
-        if (plan == null) {
-            plan = createExtensionPlan(player, 1, now, clickedFace);
+        if (!continuing) {
+            extensionProgress.put(playerId, 0);
+            BlockFace clickedFace =
+                    event.getClickedBlock() == null ? null : event.getBlockFace();
             if (plan == null) {
+                plan = createExtensionPlan(player, 1, now, clickedFace);
+            } else {
+                ExtensionPlan clickedPlan =
+                        createExtensionPlan(player, plan.length(), now, clickedFace);
+                if (clickedPlan != null) {
+                    plan = clickedPlan.withWidth(plan.width(), now);
+                }
+            }
+            if (plan == null) {
+                clearExtensionState(playerId);
                 event.setCancelled(true);
                 return;
             }
-        } else {
-            ExtensionPlan clickedPlan = createExtensionPlan(player, plan.length(), now, clickedFace);
-            if (clickedPlan != null) {
-                plan = clickedPlan.withWidth(plan.width(), now);
-            }
         }
+        extensionLastInputTick.put(playerId, now);
         commitPlan(player, plan);
         event.setCancelled(true);
     }
 
     private void commitPlan(Player player, ExtensionPlan plan) {
-        if (plan == null) {
+        UUID playerId = player.getUniqueId();
+        PlayerSession session = sessions.session(actorOf(player));
+        long now = player.getWorld().getFullTime();
+        int completed = Math.max(0, extensionProgress.getOrDefault(playerId, 0));
+        int availableLength = maxExtensionLength(player, plan);
+        int cycleLength = extensionCycleLength(plan.length(), 0, availableLength);
+        if (cycleLength == 0) {
+            session.clearExtensionPlan();
+            extensionProgress.put(playerId, -1);
             return;
         }
-        CommandResult result = commands.execute(extensionContext(player, plan));
-        if (result.success()) {
-            sessions.session(actorOf(player)).clearExtensionPlan();
-        } else {
-            sessions.session(actorOf(player)).clearExtensionPlan();
+        ExtensionPlan segment = plan.withLength(cycleLength, now);
+        CommandResult result = commands.execute(extensionContext(player, segment));
+        if (!result.success()) {
+            session.clearExtensionPlan();
+            clearExtensionState(playerId);
             player.sendActionBar(Component.text(result.message(), NamedTextColor.RED));
+            return;
         }
-    }
 
+        int nextCompleted = completed + cycleLength;
+        if (cycleLength >= availableLength) {
+            session.clearExtensionPlan();
+            extensionProgress.put(playerId, -1);
+            player.sendActionBar(Component.text(
+                    "Extension: max length reached", NamedTextColor.AQUA));
+            return;
+        }
+
+        extensionProgress.put(playerId, nextCompleted);
+        ExtensionPlan next = new ExtensionPlan(
+                segment.endpoint(),
+                segment.direction(),
+                segment.block(),
+                plan.length(),
+                segment.width(),
+                now);
+        session.setExtensionPlan(next);
+        player.sendActionBar(Component.text(
+                "Extension: " + next.length() + " x " + next.width(), NamedTextColor.AQUA));
+    }
     /**
      * Holding the brick selects extension mode. Sneak-scroll adjusts extension length; normal
      * scrolling remains vanilla hotbar selection. Larger jumps are treated as number-key slot
@@ -181,6 +234,7 @@ public final class GadgetListener implements Listener {
         boolean previousBrick = GadgetItem.isExtensionToken(previousItem);
         boolean nextBrick = GadgetItem.isExtensionToken(nextItem);
         long now = player.getWorld().getFullTime();
+        UUID playerId = player.getUniqueId();
         PlayerSession session = sessions.session(actorOf(player));
 
         if (!previousBrick) {
@@ -196,12 +250,14 @@ public final class GadgetListener implements Listener {
                 armExtensionPlan(player, now);
             } else {
                 session.clearExtensionPlan();
+                clearExtensionState(playerId);
             }
             return;
         }
 
         ExtensionPlan plan = session.extensionPlan().orElse(null);
         if (plan == null) {
+            clearExtensionState(playerId);
             plan = createExtensionPlan(player, 1, now);
             if (plan == null) {
                 return;
@@ -209,11 +265,12 @@ public final class GadgetListener implements Listener {
         }
         plan = plan.withLengthDelta(delta, limits.selectionExtent(), now);
         session.setExtensionPlan(plan);
+        extensionLastInputTick.put(playerId, now);
         event.setCancelled(true);
         player.sendActionBar(Component.text(
                 "Extension: " + plan.length() + " x " + plan.width(), NamedTextColor.AQUA));
-    }
 
+    }
     @EventHandler
     public void onExtensionJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
@@ -223,12 +280,21 @@ public final class GadgetListener implements Listener {
         }
     }
 
+    @EventHandler
+    public void onExtensionQuit(PlayerQuitEvent event) {
+        clearExtensionState(event.getPlayer().getUniqueId());
+    }
+
     private void armExtensionPlan(Player player, long now) {
+        UUID playerId = player.getUniqueId();
+        clearExtensionState(playerId);
+        PlayerSession session = sessions.session(actorOf(player));
         ExtensionPlan plan = createExtensionPlan(player, 1, now);
         if (plan == null) {
+            session.clearExtensionPlan();
             return;
         }
-        sessions.session(actorOf(player)).setExtensionPlan(plan);
+        session.setExtensionPlan(plan);
         player.sendActionBar(Component.text("Extension: 1 x 1", NamedTextColor.AQUA));
     }
     private ExtensionPlan currentExtensionPlan(Player player, PlayerSession session) {
@@ -238,9 +304,75 @@ public final class GadgetListener implements Listener {
         }
         if (!matchesPlayer(player, plan)) {
             session.clearExtensionPlan();
+            clearExtensionState(player.getUniqueId());
             return null;
         }
         return plan;
+    }
+
+    private int maxExtensionLength(Player player, ExtensionPlan plan) {
+        BlockPosition origin = new BlockPosition(
+                player.getWorld().getName(),
+                player.getLocation().getBlockX(),
+                player.getLocation().getBlockY(),
+                player.getLocation().getBlockZ());
+        return extensionMaxLength(
+                origin,
+                plan.anchor(),
+                plan.direction(),
+                limits.interactionDistance(),
+                limits.selectionExtent());
+    }
+
+    static int extensionCycleLength(int selectedLength, int completedLength, int maximumLength) {
+        if (selectedLength < 1) {
+            throw new IllegalArgumentException("selectedLength must be positive");
+        }
+        if (completedLength < 0) {
+            throw new IllegalArgumentException("completedLength must not be negative");
+        }
+        if (maximumLength < 0) {
+            throw new IllegalArgumentException("maximumLength must not be negative");
+        }
+        return Math.max(0, Math.min(selectedLength, maximumLength - completedLength));
+    }
+
+    static int extensionMaxLength(
+            BlockPosition origin,
+            BlockPosition anchor,
+            BlockOffset direction,
+            double maximumDistance,
+            int maximumLength) {
+        if (maximumDistance <= 0.0) {
+            throw new IllegalArgumentException("maximumDistance must be positive");
+        }
+        if (maximumLength < 1) {
+            throw new IllegalArgumentException("maximumLength must be positive");
+        }
+        long baseX = (long) anchor.x() - origin.x();
+        long baseY = (long) anchor.y() - origin.y();
+        long baseZ = (long) anchor.z() - origin.z();
+        double maximumDistanceSquared = maximumDistance * maximumDistance;
+        int availableLength = 0;
+        for (int length = 1; length <= maximumLength; length++) {
+            long deltaX = baseX + (long) direction.x() * length;
+            long deltaY = baseY + (long) direction.y() * length;
+            long deltaZ = baseZ + (long) direction.z() * length;
+            double distanceSquared =
+                    (double) deltaX * deltaX
+                            + (double) deltaY * deltaY
+                            + (double) deltaZ * deltaZ;
+            if (distanceSquared > maximumDistanceSquared) {
+                break;
+            }
+            availableLength = length;
+        }
+        return availableLength;
+    }
+
+    private void clearExtensionState(UUID playerId) {
+        extensionProgress.remove(playerId);
+        extensionLastInputTick.remove(playerId);
     }
 
     private ExtensionPlan createExtensionPlan(Player player, int length, long now) {
